@@ -1,4 +1,4 @@
-# kinea-infra-ingestao
+# kinea-infra-ingestion
 
 Automated ingestion pipeline for news, regulatory data, and podcast sources in the infrastructure sector, feeding Kinea's daily research briefing.
 
