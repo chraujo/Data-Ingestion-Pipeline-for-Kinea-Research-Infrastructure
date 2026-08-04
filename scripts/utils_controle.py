@@ -30,6 +30,15 @@
 
 # COMMAND ----------
 
+from pyspark.sql import SparkSession
+
+# Pega a sessão Spark ativa explicitamente, em vez de depender da variável
+# global `spark` que o Databricks injeta em cada notebook. Essa injeção
+# implícita nem sempre fica visível dentro de uma função chamada via %run
+# (depende de como o namespace foi compartilhado) — pegar a sessão de forma
+# explícita evita esse tipo de NameError intermitente.
+spark = SparkSession.builder.getOrCreate()
+
 CATALOGO_CONTROLE = "desafio_kinea"
 SCHEMA_CONTROLE = "research"
 PREFIXO_CONTROLE = "controle_"
