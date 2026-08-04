@@ -21,8 +21,14 @@
 # Configuração
 # =============================================================================
 
+# Reaproveitamos o schema "research", que já existe e onde o usuário já tem
+# permissão de escrita comprovada (é onde o pipeline de ingestão grava hoje).
+# Criar um schema novo ("controle") exigiria privilégio CREATE SCHEMA no
+# catálogo, que esse usuário não tem — em vez disso, diferenciamos as tabelas
+# de controle por um prefixo (controle_...).
 CATALOGO = "desafio_kinea"
-SCHEMA = "controle"
+SCHEMA = "research"
+PREFIXO = "controle_"
 
 # Caminho do Excel atual. Ajuste para onde você subir o arquivo
 # (ex.: dentro de um Volume, ou anexado ao workspace).
@@ -42,14 +48,18 @@ FORCAR_SOBRESCRITA = False
 import pandas as pd
 from datetime import datetime, timezone
 
-spark.sql(f"CREATE SCHEMA IF NOT EXISTS {CATALOGO}.{SCHEMA}")
+# Não criamos catálogo nem schema aqui de propósito — ambos já existem e
+# criação exige privilégios de admin que este usuário não tem. Se algum dia
+# isso mudar (schema "controle" dedicado, criado por um admin), basta voltar
+# SCHEMA = "controle" e PREFIXO = "" e essa migração passa a valer sem
+# nenhuma outra alteração no restante do script.
 
 TABELAS_ALVO = [
-    f"{CATALOGO}.{SCHEMA}.fontes",
-    f"{CATALOGO}.{SCHEMA}.notebooks",
-    f"{CATALOGO}.{SCHEMA}.tasks",
-    f"{CATALOGO}.{SCHEMA}.bloqueios",
-    f"{CATALOGO}.{SCHEMA}.changelog_historico",
+    f"{CATALOGO}.{SCHEMA}.{PREFIXO}fontes",
+    f"{CATALOGO}.{SCHEMA}.{PREFIXO}notebooks",
+    f"{CATALOGO}.{SCHEMA}.{PREFIXO}tasks",
+    f"{CATALOGO}.{SCHEMA}.{PREFIXO}bloqueios",
+    f"{CATALOGO}.{SCHEMA}.{PREFIXO}changelog_historico",
 ]
 
 if not FORCAR_SOBRESCRITA:
@@ -211,11 +221,11 @@ def escrever(df_pandas: pd.DataFrame, nome_tabela: str):
     )
     print(f"[ok] {nome_tabela}: {len(df_pandas)} linhas gravadas")
 
-escrever(df_fontes, f"{CATALOGO}.{SCHEMA}.fontes")
-escrever(df_notebooks, f"{CATALOGO}.{SCHEMA}.notebooks")
-escrever(df_tasks, f"{CATALOGO}.{SCHEMA}.tasks")
-escrever(df_bloqueios, f"{CATALOGO}.{SCHEMA}.bloqueios")
-escrever(df_changelog, f"{CATALOGO}.{SCHEMA}.changelog_historico")
+escrever(df_fontes, f"{CATALOGO}.{SCHEMA}.{PREFIXO}fontes")
+escrever(df_notebooks, f"{CATALOGO}.{SCHEMA}.{PREFIXO}notebooks")
+escrever(df_tasks, f"{CATALOGO}.{SCHEMA}.{PREFIXO}tasks")
+escrever(df_bloqueios, f"{CATALOGO}.{SCHEMA}.{PREFIXO}bloqueios")
+escrever(df_changelog, f"{CATALOGO}.{SCHEMA}.{PREFIXO}changelog_historico")
 
 # COMMAND ----------
 
@@ -225,9 +235,9 @@ escrever(df_changelog, f"{CATALOGO}.{SCHEMA}.changelog_historico")
 # a modelagem)
 # =============================================================================
 
-spark.sql(f"ALTER TABLE {CATALOGO}.{SCHEMA}.fontes ADD CONSTRAINT pk_fontes PRIMARY KEY (source_id)")
-spark.sql(f"ALTER TABLE {CATALOGO}.{SCHEMA}.notebooks ADD CONSTRAINT pk_notebooks PRIMARY KEY (notebook_nome)")
-spark.sql(f"ALTER TABLE {CATALOGO}.{SCHEMA}.bloqueios ADD CONSTRAINT pk_bloqueios PRIMARY KEY (id)")
+spark.sql(f"ALTER TABLE {CATALOGO}.{SCHEMA}.{PREFIXO}fontes ADD CONSTRAINT pk_{PREFIXO}fontes PRIMARY KEY (source_id)")
+spark.sql(f"ALTER TABLE {CATALOGO}.{SCHEMA}.{PREFIXO}notebooks ADD CONSTRAINT pk_{PREFIXO}notebooks PRIMARY KEY (notebook_nome)")
+spark.sql(f"ALTER TABLE {CATALOGO}.{SCHEMA}.{PREFIXO}bloqueios ADD CONSTRAINT pk_{PREFIXO}bloqueios PRIMARY KEY (id)")
 
 # COMMAND ----------
 
@@ -239,4 +249,4 @@ for t in TABELAS_ALVO:
     n = spark.table(t).count()
     print(f"{t}: {n} linhas")
 
-display(spark.table(f"{CATALOGO}.{SCHEMA}.fontes").limit(10))
+display(spark.table(f"{CATALOGO}.{SCHEMA}.{PREFIXO}fontes").limit(10))
