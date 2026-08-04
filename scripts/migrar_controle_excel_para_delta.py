@@ -18,6 +18,23 @@
 # COMMAND ----------
 
 # =============================================================================
+# Dependência: openpyxl (necessária para ler .xlsx via pandas).
+# Não vem instalada por padrão no cluster — instalamos aqui para que o
+# notebook funcione de forma reprodutível, sem precisar de configuração
+# manual no cluster.
+# =============================================================================
+
+# MAGIC %pip install openpyxl
+
+# COMMAND ----------
+
+# Reinicia o interpretador Python para que o pacote recém-instalado seja
+# reconhecido (necessário no Databricks após %pip install).
+dbutils.library.restartPython()
+
+# COMMAND ----------
+
+# =============================================================================
 # Configuração
 # =============================================================================
 
@@ -119,6 +136,10 @@ df_fontes["ultima_execucao"] = pd.NaT
 df_fontes["docs_capturados"] = pd.array([None] * len(df_fontes), dtype="Int64")
 df_fontes["ultimo_erro"] = None
 df_fontes["data_migracao"] = datetime.now(timezone.utc)
+# Nota: essas 3 primeiras colunas nascem 100% vazias (nenhum pipeline rodou
+# ainda), então o Spark não consegue inferir o tipo delas sozinho a partir
+# do pandas (viram NullType, o que quebra escritas futuras). O tipo correto
+# é forçado explicitamente logo abaixo, na função `escrever`.
 
 # Linhas sem source_id não têm como virar chave — ficam de fora e são
 # reportadas, em vez de entrar silenciosamente com chave nula.
@@ -212,16 +233,33 @@ df_changelog = pd.DataFrame({
 # Escrita das tabelas Delta
 # =============================================================================
 
-def escrever(df_pandas: pd.DataFrame, nome_tabela: str):
+from pyspark.sql import types as T
+
+def escrever(df_pandas: pd.DataFrame, nome_tabela: str, tipos_explicitos: dict = None):
+    df_spark = spark.createDataFrame(df_pandas)
+    # Força o tipo de colunas que podem ter nascido 100% vazias, já que o
+    # Spark não consegue inferir tipo a partir de puro nulo (viraria
+    # NullType, que quebra escritas/leituras futuras).
+    if tipos_explicitos:
+        for coluna, tipo in tipos_explicitos.items():
+            df_spark = df_spark.withColumn(coluna, df_spark[coluna].cast(tipo))
     (
-        spark.createDataFrame(df_pandas)
+        df_spark
         .write.format("delta")
-        .mode("overwrite" if FORCAR_SOBRESCRITA else "errorifexists")
+        .mode("overwrite" if FORCAR_SOBRESCRITA else "error")
         .saveAsTable(nome_tabela)
     )
     print(f"[ok] {nome_tabela}: {len(df_pandas)} linhas gravadas")
 
-escrever(df_fontes, f"{CATALOGO}.{SCHEMA}.{PREFIXO}fontes")
+escrever(
+    df_fontes,
+    f"{CATALOGO}.{SCHEMA}.{PREFIXO}fontes",
+    tipos_explicitos={
+        "ultima_execucao": T.TimestampType(),
+        "docs_capturados": T.IntegerType(),
+        "ultimo_erro": T.StringType(),
+    },
+)
 escrever(df_notebooks, f"{CATALOGO}.{SCHEMA}.{PREFIXO}notebooks")
 escrever(df_tasks, f"{CATALOGO}.{SCHEMA}.{PREFIXO}tasks")
 escrever(df_bloqueios, f"{CATALOGO}.{SCHEMA}.{PREFIXO}bloqueios")
@@ -235,8 +273,13 @@ escrever(df_changelog, f"{CATALOGO}.{SCHEMA}.{PREFIXO}changelog_historico")
 # a modelagem)
 # =============================================================================
 
+spark.sql(f"ALTER TABLE {CATALOGO}.{SCHEMA}.{PREFIXO}fontes ALTER COLUMN source_id SET NOT NULL")
 spark.sql(f"ALTER TABLE {CATALOGO}.{SCHEMA}.{PREFIXO}fontes ADD CONSTRAINT pk_{PREFIXO}fontes PRIMARY KEY (source_id)")
+
+spark.sql(f"ALTER TABLE {CATALOGO}.{SCHEMA}.{PREFIXO}notebooks ALTER COLUMN notebook_nome SET NOT NULL")
 spark.sql(f"ALTER TABLE {CATALOGO}.{SCHEMA}.{PREFIXO}notebooks ADD CONSTRAINT pk_{PREFIXO}notebooks PRIMARY KEY (notebook_nome)")
+
+spark.sql(f"ALTER TABLE {CATALOGO}.{SCHEMA}.{PREFIXO}bloqueios ALTER COLUMN id SET NOT NULL")
 spark.sql(f"ALTER TABLE {CATALOGO}.{SCHEMA}.{PREFIXO}bloqueios ADD CONSTRAINT pk_{PREFIXO}bloqueios PRIMARY KEY (id)")
 
 # COMMAND ----------
