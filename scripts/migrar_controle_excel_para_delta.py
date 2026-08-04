@@ -42,7 +42,6 @@ FORCAR_SOBRESCRITA = False
 import pandas as pd
 from datetime import datetime, timezone
 
-spark.sql(f"CREATE CATALOG IF NOT EXISTS {CATALOGO}")
 spark.sql(f"CREATE SCHEMA IF NOT EXISTS {CATALOGO}.{SCHEMA}")
 
 TABELAS_ALVO = [
