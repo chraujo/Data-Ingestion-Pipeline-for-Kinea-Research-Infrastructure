@@ -293,3 +293,11 @@ for t in TABELAS_ALVO:
     print(f"{t}: {n} linhas")
 
 display(spark.table(f"{CATALOGO}.{SCHEMA}.{PREFIXO}fontes").limit(10))
+
+# COMMAND ----------
+
+# =============================================================================
+# Preview completo (sem limite) — útil pra conferência manual
+# =============================================================================
+
+display(spark.table(f"{CATALOGO}.{SCHEMA}.{PREFIXO}fontes"))
