@@ -26,7 +26,13 @@ TABELA_NOTEBOOKS = f"{CATALOGO}.{SCHEMA}.{PREFIXO}notebooks"
 TABELA_TASKS = f"{CATALOGO}.{SCHEMA}.{PREFIXO}tasks"
 
 SOURCE_ID = "ana_noticias"
-NOTEBOOK_NOME = "ingest-scraping"
+# Nome usado em controle_notebooks para o dispatcher generico de scraping --
+# é o nome herdado da migração original do Excel (caminho antigo,
+# "ingestores/scraping-generico/..."), não o caminho atual do arquivo no
+# repo ("ingestores/Notebooks unificados/ingest-scraping.ipynb"). Mantido
+# assim de propósito, pra bater com o que já está cadastrado na tabela --
+# não é escopo deste script corrigir esse desalinhamento histórico.
+NOTEBOOK_NOME = "ingest-scraping-generico"
 
 # COMMAND ----------
 
