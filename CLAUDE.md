@@ -168,16 +168,55 @@ localizados/enviados — quando existirem, aplicar o mesmo padrão de
   `published_at`) — esse é o contrato fixo consumido pelo pipeline de
   sumarização/briefing (`gera_config.ipynb`).
 
+## Como adicionar uma fonte nova
+
+Fluxo em 3 fases — sempre nessa ordem, sem pular etapa:
+
+**Fase 1 — Teste isolado.** Cria um notebook de teste em
+`ingestores/[SETOR]/teste_[nome_fonte].ipynb`, sem depender de nenhum
+dispatcher existente. Só valida se dá pra extrair os itens da fonte (RSS,
+scraping ou PDF, o que fizer sentido) e imprime uma amostra pra conferência
+manual. Esse notebook é descartável — não precisa seguir o padrão de
+produção (sem `atualizar_status_fonte`, sem estar registrado em nenhuma
+tabela).
+
+**Fase 2 — Avaliação: encaixa num dispatcher genérico ou precisa de notebook
+próprio?**
+- Encaixa num dos 3 genéricos (`ingest-news-rss-infra`, `ingest-scraping`,
+  `ingest-PDF`) se: é "baixar uma URL e extrair itens de forma padrão" —
+  sem precisar de navegador, transcrição de áudio, ou parsing muito
+  particular daquele site específico.
+- Precisa de notebook próprio (como `ingest-diario-oficial-ms` ou
+  `ingest-minutomega`) se: exige Selenium/Playwright, processamento de
+  áudio, ou uma lógica de descoberta/parsing que não se resume a
+  "baixar e extrair itens".
+
+**Fase 3 — Integração**, dependendo do resultado da Fase 2:
+- *Dispatcher genérico*: adiciona a entrada no `CONFIGS_FONTES`
+  correspondente, com um `source_id` novo e **único** (confirma antes que
+  não existe ainda — ver a query de duplicidade na seção acima). Adiciona
+  a linha em `controle_fontes` (status inicial `"Não iniciada"`).
+- *Notebook próprio*: cria o notebook em `ingestores/[SETOR]/`, seguindo o
+  padrão dos notebooks de fonte única — todos os desfechos (sucesso, cada
+  erro esperado) cobertos com `atualizar_status_fonte`, `%run` do
+  `utils_controle` posicionado logo antes da célula de execução (não logo
+  após o `restartPython()`, para evitar problema de timing). Adiciona
+  linhas correspondentes em `controle_fontes`, `controle_notebooks` e
+  `controle_tasks`.
+
+Só depois da Fase 3 a fonte deve ser adicionada a algum Job de produção.
+
 ## Próximas etapas do plano (ordem sugerida)
 
 1. ✅ Migração Excel → Delta
 2. ✅ Dispatchers atualizando `controle_fontes` em tempo real
 3. 🔄 Terminar de validar todos os dispatchers (Brazil Journal em teste;
    faltam Estadão/O Globo/Moody's; decidir sobre `ingest-news.ipynb`)
-4. 🔄 Este arquivo (`CLAUDE.md`)
-5. ⬜ Script gerador de relatório HTML de progresso (estilo visual do
-   `exemplo_resultado_infra.html`), lendo de `controle_fontes` — seções
-   ativas (placar geral, cobertura por área, pendências, últimas
-   atualizações) + seções em standby (entregáveis, critérios de aceitação,
-   timeline, estimativa de custo — do briefing formal do desafio)
-6. ⬜ Testar o relatório e validar pra circular em standup
+4. ✅ Este arquivo (`CLAUDE.md`)
+5. ✅ Relatório HTML de progresso — em abas (Mensagens / Fontes / Notebooks
+   & Tasks / Bloqueios / Fases & Entregáveis / Últimas atualizações), com
+   fichas compactas por fonte e anotações manuais via `MENSAGENS.md`
+6. ⬜ Continuar refinando o relatório conforme feedback de uso
+7. ⬜ Processo de adicionar fontes novas (fluxo de 3 fases acima) — em uso,
+   mas ainda não testado de ponta a ponta com uma fonte real
+
