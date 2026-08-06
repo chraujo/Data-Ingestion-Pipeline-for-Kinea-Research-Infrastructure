@@ -1,0 +1,654 @@
+[
+  {
+    "canonical_id": "central_fotovoltaica_sao_pedro_iv_s_a",
+    "nome_principal": "CENTRAL FOTOVOLTAICA SÃO PEDRO IV S.A.",
+    "aliases": [
+      "CENTRAL FOTOVOLTAICA SÃO PEDRO IV S.A.",
+      "Centrais Fotovoltaicas São Pedro II e IV",
+      "SPIV11",
+      "São Pedro",
+      "São Pedro IV",
+      "São Pedro IV S.A."
+    ]
+  },
+  {
+    "canonical_id": "ourinhos_saneamento_s_a",
+    "nome_principal": "OURINHOS SANEAMENTO S.A.",
+    "aliases": [
+      "OURINHOS SANEAMENTO S.A."
+    ]
+  },
+  {
+    "canonical_id": "ouro_preto_servicos_de_saneamento_s_a_saneouro",
+    "nome_principal": "OURO PRETO SERVICOS DE SANEAMENTO S.A - SANEOURO",
+    "aliases": [
+      "Consórcio GS INIMA e TRAÇADO",
+      "Consórcio GS Inima e Traçado",
+      "GS INIMA e Traçado",
+      "GS Inima Brasil",
+      "OURINHOS SANEAMENTO S.A.",
+      "OURO PRETO SERVICOS DE SANEAMENTO S.A - SANEOURO",
+      "OUSA11",
+      "Ourinhos Saneamento",
+      "Saneamento Ourinhos",
+      "Traçado de Erechim"
+    ]
+  },
+  {
+    "canonical_id": "sobral_i_solar_energia_spe_s_a",
+    "nome_principal": "SOBRAL I SOLAR ENERGIA SPE S.A.",
+    "aliases": [
+      "SISE11",
+      "SOBRAL I SOLAR ENERGIA SPE S.A.",
+      "Sobral Energia",
+      "Sobral I Solar",
+      "Sobral Solar Energia"
+    ]
+  },
+  {
+    "canonical_id": "ventos_de_sao_clemente_holding_s_a",
+    "nome_principal": "VENTOS DE SAO CLEMENTE HOLDING S.A",
+    "aliases": [
+      "Complexo Eólico Ventos de São Clemente",
+      "Complexo Ventos de São Clemente",
+      "Echoenergia",
+      "São Clemente",
+      "VENTOS DE SAO CLEMENTE HOLDING S.A",
+      "VSCL12",
+      "Ventos de São Clemente"
+    ]
+  },
+  {
+    "canonical_id": "rio_saneamento_bl3_s_a",
+    "nome_principal": "RIO + SANEAMENTO BL3 S.A",
+    "aliases": [
+      "RIO + SANEAMENTO BL3 S.A",
+      "Rio+ Saneamento",
+      "Rio+ Saneamento BL3 S.A",
+      "Rio+Saneamento",
+      "SABP12"
+    ]
+  },
+  {
+    "canonical_id": "rumo_malha_paulista_s_a",
+    "nome_principal": "RUMO MALHA PAULISTA S/A",
+    "aliases": [
+      "CEG-Rio",
+      "CSAN3",
+      "Comgás",
+      "Commit",
+      "Compagas",
+      "Compass",
+      "Cosan",
+      "Cosan Nove Participações",
+      "Edge",
+      "GASC18",
+      "MSGÁS",
+      "Moove",
+      "OneBio",
+      "Orizon",
+      "RUMO MALHA PAULISTA S/A",
+      "Radar",
+      "Raízen",
+      "Rumo",
+      "SCGÁS",
+      "Sulgás"
+    ]
+  },
+  {
+    "canonical_id": "portocem_geracao_de_energia_s_a",
+    "nome_principal": "PORTOCEM GERAÇÃO DE ENERGIA S.A.",
+    "aliases": [
+      "Ceiba Energy",
+      "NFE",
+      "New Fortress Energy",
+      "PORTOCEM GERAÇÃO DE ENERGIA S.A.",
+      "PTCE11",
+      "Portocem",
+      "Portocem GERAÇÃO de Energia S.A.",
+      "UTE Portocem",
+      "UTE Portocem I"
+    ]
+  },
+  {
+    "canonical_id": "rzk_solar_07_s_a",
+    "nome_principal": "RZK SOLAR 07 S.A.",
+    "aliases": [
+      "Grupo RZK",
+      "Nova Milano",
+      "RZK",
+      "RZK Comercializadora",
+      "RZK Energia",
+      "RZK Energia S.A.",
+      "RZK SOLAR 07 S.A.",
+      "RZK Solar 02",
+      "RZK Soluções",
+      "RZK Soluções e Participações",
+      "RZKS11",
+      "Thopen"
+    ]
+  },
+  {
+    "canonical_id": "tropicalia_transmissora_de_energia_s_a",
+    "nome_principal": "TROPICALIA TRANSMISSORA DE ENERGIA S.A.",
+    "aliases": [
+      "Holbaeck Empreendimentos e Participações",
+      "TROPICALIA TRANSMISSORA DE ENERGIA S.A.",
+      "TRPI13",
+      "Tropicália",
+      "Tropicália Transmissora de Energia"
+    ]
+  },
+  {
+    "canonical_id": "highline_do_brasil_ii_infraestrutura_de_telecomuni",
+    "nome_principal": "HIGHLINE DO BRASIL II INFRAESTRUTURA DE TELECOMUNICACOES S.A.",
+    "aliases": [
+      "Digital Colony",
+      "DigitalBridge",
+      "HGLB23",
+      "HIGHLINE DO BRASIL II INFRAESTRUTURA DE TELECOMUNICACOES S.A.",
+      "Highline",
+      "Highline Brasil",
+      "Highline do Brasil",
+      "Highline do Brasil II",
+      "Highline do Brasil II Infraestrutura de Telecomunicações S.A."
+    ]
+  },
+  {
+    "canonical_id": "usina_de_energia_fotovoltaica_de_coromandel_s_a",
+    "nome_principal": "USINA DE ENERGIA FOTOVOLTAICA DE COROMANDEL S.A.",
+    "aliases": [
+      "CRMD11",
+      "Coromandel 2",
+      "Solatio",
+      "UFV Coromandel",
+      "USINA DE ENERGIA FOTOVOLTAICA DE COROMANDEL S.A.",
+      "Usina Fotovoltaica de Coromandel",
+      "Usina de Energia Fotovoltaica de Coromandel S.A."
+    ]
+  },
+  {
+    "canonical_id": "aguas_do_rio_4_spe_s_a",
+    "nome_principal": "AGUAS DO RIO 4 SPE S.A",
+    "aliases": [
+      "AGUAS DO RIO 4 SPE S.A"
+    ]
+  },
+  {
+    "canonical_id": "aguas_do_rio_1_spe_s_a",
+    "nome_principal": "AGUAS DO RIO 1 SPE S.A",
+    "aliases": [
+      "AGUAS DO RIO 1 SPE S.A",
+      "AGUAS DO RIO 4 SPE S.A"
+    ]
+  },
+  {
+    "canonical_id": "aegea_saneamento_e_participacoes_s_a",
+    "nome_principal": "AEGEA SANEAMENTO E PARTICIPACOES S.A.",
+    "aliases": [
+      "AEGEA SANEAMENTO E PARTICIPACOES S.A.",
+      "AGUAS DO RIO 4 SPE S.A",
+      "Aegea",
+      "Aegea Saneamento",
+      "RIS424"
+    ]
+  },
+  {
+    "canonical_id": "bc_geracao_e_comercializacao_de_energia_s_a",
+    "nome_principal": "BC GERACAO E COMERCIALIZACAO DE ENERGIA S/A",
+    "aliases": [
+      "BC Energia",
+      "BC GERACAO E COMERCIALIZACAO DE ENERGIA S/A",
+      "BC GERAÇÃO",
+      "BCGE12"
+    ]
+  },
+  {
+    "canonical_id": "totalenergies_dracena_participacoes_s_a",
+    "nome_principal": "TOTALENERGIES DRACENA PARTICIPACOES S.A.",
+    "aliases": [
+      "EREN23",
+      "TOTALENERGIES",
+      "TOTALENERGIES DRACENA PARTICIPACOES S.A.",
+      "Total Energies",
+      "TotalEnergies"
+    ]
+  },
+  {
+    "canonical_id": "central_fotovoltaica_sao_pedro_ii_s_a",
+    "nome_principal": "CENTRAL FOTOVOLTAICA SÃO PEDRO II S.A.",
+    "aliases": [
+      "CENTRAL FOTOVOLTAICA SÃO PEDRO II S.A.",
+      "FTSP11"
+    ]
+  },
+  {
+    "canonical_id": "ute_gna_i_geracao_de_energia_s_a",
+    "nome_principal": "UTE GNA I GERAÇÃO DE ENERGIA S.A.",
+    "aliases": [
+      "GNA I",
+      "UNEG11",
+      "UTE GNA",
+      "UTE GNA I",
+      "UTE GNA I GERAÇÃO DE ENERGIA S.A."
+    ]
+  },
+  {
+    "canonical_id": "concessionario_via_rio_s_a",
+    "nome_principal": "CONCESSIONÁRIO VIA RIO S.A.",
+    "aliases": [
+      "CONCESSIONÁRIO VIA RIO S.A.",
+      "CTOL18",
+      "CONCESSIONARIA VIARIO S",
+      "CTOL28"
+    ]
+  },
+  {
+    "canonical_id": "pax_investimentos_em_aeroportos_s_a",
+    "nome_principal": "PAX INVESTIMENTOS EM AEROPORTOS S.A",
+    "aliases": [
+      "PAX",
+      "PAX Aeroportos",
+      "PAX INVESTIMENTOS EM AEROPORTOS S.A",
+      "PAX Investimentos",
+      "PAX Investimentos em Aeroportos S.A",
+      "PRSS11"
+    ]
+  },
+  {
+    "canonical_id": "transmissora_jose_maria_de_macedo_de_eletricidade_",
+    "nome_principal": "TRANSMISSORA JOSE MARIA DE MACEDO DE ELETRICIDADE S.A.",
+    "aliases": [
+      "TJMM11",
+      "TRANSMISSORA JOSE MARIA DE MACEDO DE ELETRICIDADE S.A."
+    ]
+  },
+  {
+    "canonical_id": "guaraciaba_transmissora_de_energia_tp_sul_s_a",
+    "nome_principal": "GUARACIABA TRANSMISSORA DE ENERGIA (TP SUL) S.A.",
+    "aliases": [
+      "GUARACIABA TRANSMISSORA",
+      "GUARACIABA TRANSMISSORA DE ENERGIA",
+      "GUARACIABA TRANSMISSORA DE ENERGIA (TP SUL) S.A.",
+      "TP SUL",
+      "TPSU12"
+    ]
+  },
+  {
+    "canonical_id": "tp_sul_s_a",
+    "nome_principal": "TP SUL S.A.",
+    "aliases": [
+      "TP SUL S.A."
+    ]
+  },
+  {
+    "canonical_id": "rota_do_para_s_a",
+    "nome_principal": "ROTA DO PARÁ S.A.",
+    "aliases": [
+      "ROTA DO PARÁ S.A.",
+      "RPAS11",
+      "Rota do Pará"
+    ]
+  },
+  {
+    "canonical_id": "spe_transmissora_de_energia_linha_verde_ii_s_a",
+    "nome_principal": "SPE TRANSMISSORA DE ENERGIA LINHA VERDE II S.A.",
+    "aliases": [
+      "Linha Verde II",
+      "SPE TRANSMISSORA DE ENERGIA LINHA VERDE II S.A.",
+      "SPE Transmissora Linha Verde II",
+      "SPLV11"
+    ]
+  },
+  {
+    "canonical_id": "axs_energia_s_a",
+    "nome_principal": "AXS ENERGIA S.A.",
+    "aliases": [
+      "AXS",
+      "AXS ENERGIA S.A.",
+      "AXS Energia",
+      "AXSD11",
+      "VINEYARDS TRANSMISSÃO DE ENERGIA",
+      "VNYD12"
+    ]
+  },
+  {
+    "canonical_id": "v2i_energia_s_a",
+    "nome_principal": "V2I ENERGIA S.A.",
+    "aliases": [
+      "V2I",
+      "V2I ENERGIA S.A.",
+      "V2I Energia",
+      "VDIE12"
+    ]
+  },
+  {
+    "canonical_id": "ventos_de_santo_estevao_holding_s_a",
+    "nome_principal": "VENTOS DE SANTO ESTEVAO HOLDING S/A",
+    "aliases": [
+      "VENTOS DE SANTO ESTEVAO HOLDING S/A",
+      "VSEH11"
+    ]
+  },
+  {
+    "canonical_id": "auren_energia_s_a",
+    "nome_principal": "AUREN ENERGIA S.A.",
+    "aliases": [
+      "AUREN ENERGIA S.A.",
+      "Auren",
+      "Auren Energia",
+      "Auren Energia S.A."
+    ]
+  },
+  {
+    "canonical_id": "pampa_transmissao_de_energia_s_a",
+    "nome_principal": "PAMPA TRANSMISSÃO DE ENERGIA S.A.",
+    "aliases": [
+      "PAMP12",
+      "PAMPA TRANSMISSÃO DE ENERGIA S.A.",
+      "Pampa Energia",
+      "Pampa Transmissão"
+    ]
+  },
+  {
+    "canonical_id": "arcoverde_transmissao_de_energia_s_a",
+    "nome_principal": "ARCOVERDE TRANSMISSAO DE ENERGIA S.A.",
+    "aliases": [
+      "ARCOVERDE TRANSMISSAO DE ENERGIA S.A.",
+      "ARCV12",
+      "Arcoverde",
+      "Arcoverde Energia",
+      "Arcoverde Transmissão"
+    ]
+  },
+  {
+    "canonical_id": "ventos_de_sao_joao_xxiii_energias_renovaveis_s_a",
+    "nome_principal": "VENTOS DE SAO JOAO XXIII ENERGIAS RENOVAVEIS S.A.",
+    "aliases": [
+      "VENTOS DE SAO JOAO XXIII ENERGIAS RENOVAVEIS S.A.",
+      "VSJX11"
+    ]
+  },
+  {
+    "canonical_id": "ventos_de_sao_lucio_i_energias_renovaveis_s_a",
+    "nome_principal": "VENTOS DE SAO LUCIO I ENERGIAS RENOVAVEIS S.A.",
+    "aliases": [
+      "VENTOS DE SAO LUCIO I ENERGIAS RENOVAVEIS S.A.",
+      "VSLE11"
+    ]
+  },
+  {
+    "canonical_id": "igua_rio_de_janeiro_s_a",
+    "nome_principal": "IGUA RIO DE JANEIRO S.A",
+    "aliases": [
+      "IGUA RIO DE JANEIRO S.A",
+      "IRJS15"
+    ]
+  },
+  {
+    "canonical_id": "igua_saneamento_s_a",
+    "nome_principal": "IGUA SANEAMENTO S.A.",
+    "aliases": [
+      "IGUA SANEAMENTO S.A.",
+      "Igua",
+      "Igua Saneamento"
+    ]
+  },
+  {
+    "canonical_id": "concessionaria_ponte_rio_niteroi_s_a_ecoponte",
+    "nome_principal": "CONCESSIONÁRIA PONTE RIO-NITERÓI S.A. (ECOPONTE)",
+    "aliases": [
+      "CONCESSIONÁRIA PONTE RIO-NITERÓI S.A. (ECOPONTE)",
+      "ECPN11"
+    ]
+  },
+  {
+    "canonical_id": "concessionaria_ponte_rio_niteroi_s_a",
+    "nome_principal": "CONCESSIONÁRIA PONTE RIO-NITERÓI S.A.",
+    "aliases": [
+      "CONCESSIONÁRIA PONTE RIO-NITERÓI S.A.",
+      "ECOPONTE",
+      "Ecoponte",
+      "Ponte Rio-Niterói"
+    ]
+  },
+  {
+    "canonical_id": "concessionaria_rodovias_do_sul_de_minas_spe_s_a",
+    "nome_principal": "CONCESSIONARIA RODOVIAS DO SUL DE MINAS SPE S.A.",
+    "aliases": [
+      "CONCESSIONARIA RODOVIAS DO SUL DE MINAS SPE S.A.",
+      "Concessionária Rodovias do Sul",
+      "RDSM12",
+      "Rodovias Sul de Minas SPE",
+      "Rodovias do Sul de Minas"
+    ]
+  },
+  {
+    "canonical_id": "concessionaria_rota_dos_coqueiros_s_a",
+    "nome_principal": "CONCESSIONÁRIA ROTA DOS COQUEIROS S.A.",
+    "aliases": [
+      "CONCESSIONÁRIA ROTA DOS COQUEIROS S.A.",
+      "Monte Capital",
+      "Monte Capital Management",
+      "Monte Capital Management Gestora",
+      "RTCQ12"
+    ]
+  },
+  {
+    "canonical_id": "monte_capital_management_gestora_de_recursos_s_a",
+    "nome_principal": "MONTE CAPITAL MANAGEMENT GESTORA DE RECURSOS S.A.",
+    "aliases": [
+      "GDPAR SN Participações em Projetos Solares S.A.",
+      "MONTE CAPITAL MANAGEMENT GESTORA DE RECURSOS S.A."
+    ]
+  },
+  {
+    "canonical_id": "gdpar_sr_participacoes_em_projetos_solares_s_a",
+    "nome_principal": "GDPAR SR PARTICIPACOES EM PROJETOS SOLARES S.A.",
+    "aliases": [
+      "GDPAR SR PARTICIPACOES EM PROJETOS SOLARES S.A.",
+      "RBRA19"
+    ]
+  },
+  {
+    "canonical_id": "gd_geracao_distribuida_participacoes_s_a",
+    "nome_principal": "GD - GERACAO DISTRIBUIDA PARTICIPACOES S.A",
+    "aliases": [
+      "GD - GERACAO DISTRIBUIDA PARTICIPACOES S.A",
+      "GD Geração Distribuida",
+      "GD Participações"
+    ]
+  },
+  {
+    "canonical_id": "concessionaria_das_rodovias_ayrton_senna_e_carvalh",
+    "nome_principal": "CONCESSIONARIA DAS RODOVIAS AYRTON SENNA E CARVALHO PINTO S/A - ECOPISTAS",
+    "aliases": [
+      "ASCP23",
+      "CONCESSIONARIA DAS RODOVIAS AYRTON SENNA E CARVALHO PINTO S/A - ECOPISTAS",
+      "Concessionária Ecopistas",
+      "Ecopistas",
+      "Ecopistas S.A."
+    ]
+  },
+  {
+    "canonical_id": "vila_piaui_2_empreendimentos_e_participacoes_s_a",
+    "nome_principal": "VILA PIAUI 2 EMPREENDIMENTOS E PARTICIPACOES S.A.",
+    "aliases": [
+      "VILA PIAUI 2 EMPREENDIMENTOS E PARTICIPACOES S.A."
+    ]
+  },
+  {
+    "canonical_id": "vila_piaui_1_empreendimentos_e_participacoes_s_a",
+    "nome_principal": "VILA PIAUI 1 EMPREENDIMENTOS E PARTICIPACOES S.A.",
+    "aliases": [
+      "VILA PIAUI 1 EMPREENDIMENTOS E PARTICIPACOES S.A.",
+      "VILA PIAUI 2",
+      "VILA PIAUI 2 EMPREENDIMENTOS E PARTICIPACOES S.A.",
+      "VP2E11",
+      "Vila Piauí",
+      "Vila Piauí 2"
+    ]
+  },
+  {
+    "canonical_id": "aguas_do_sertao_s_a",
+    "nome_principal": "ÁGUAS DO SERTÃO S.A.",
+    "aliases": [
+      "ASER12",
+      "CONASA",
+      "Conasa Infraestrutura",
+      "ÁGUAS DO SERTÃO S.A."
+    ]
+  },
+  {
+    "canonical_id": "conasa_infraestrutura_s_a",
+    "nome_principal": "CONASA INFRAESTRUTURA S.A.",
+    "aliases": [
+      "CONASA INFRAESTRUTURA S.A."
+    ]
+  },
+  {
+    "canonical_id": "januario_de_napoli_geracao_de_energia_s_a",
+    "nome_principal": "JANUARIO DE NAPOLI GERACAO DE ENERGIA S/A",
+    "aliases": [
+      "JANU11",
+      "JANUARIO DE NAPOLI GERACAO DE ENERGIA S/A"
+    ]
+  },
+  {
+    "canonical_id": "ecorodovias_concessoes_e_servicos_s_a_subholding",
+    "nome_principal": "ECORODOVIAS CONCESSÕES E SERVIÇOS S.A. (SUBHOLDING)",
+    "aliases": [
+      "ECORODOVIAS CONCESSÕES E SERVIÇOS S.A. (SUBHOLDING)"
+    ]
+  },
+  {
+    "canonical_id": "eco135_concessionaria_de_rodovias_s_a",
+    "nome_principal": "ECO135 CONCESSIONARIA DE RODOVIAS S.A.",
+    "aliases": [
+      "ECO135 CONCESSIONARIA DE RODOVIAS S.A.",
+      "ERDVB4",
+      "Ecorodovias",
+      "Ecorodovias Concessões",
+      "Ecorodovias Subholding"
+    ]
+  },
+  {
+    "canonical_id": "ecorodovias_concessoes_e_servicos_s_a",
+    "nome_principal": "ECORODOVIAS CONCESSÕES E SERVIÇOS S.A.",
+    "aliases": [
+      "ECORODOVIAS CONCESSÕES E SERVIÇOS S.A."
+    ]
+  },
+  {
+    "canonical_id": "caldeirao_grande_energias_renovaveis_s_a",
+    "nome_principal": "CALDEIRAO GRANDE ENERGIAS RENOVAVEIS S/A",
+    "aliases": [
+      "CALDEIRAO GRANDE ENERGIAS RENOVAVEIS S/A",
+      "CLGE11"
+    ]
+  },
+  {
+    "canonical_id": "solaris_transmissao_de_energia_s_a",
+    "nome_principal": "SOLARIS TRANSMISSAO DE ENERGIA S.A",
+    "aliases": [
+      "SOLARIS TRANSMISSAO DE ENERGIA S.A",
+      "SOTE11",
+      "Solaris Energia",
+      "Solaris Transmissão",
+      "Solaris Transmissão de Energia S.A"
+    ]
+  },
+  {
+    "canonical_id": "brk_ambiental_participacoes_s_a",
+    "nome_principal": "BRK AMBIENTAL PARTICIPACOES S.A.",
+    "aliases": [
+      "BRK AMBIENTAL PARTICIPACOES S.A.",
+      "BRK",
+      "BRK Ambiental",
+      "BRKPA1",
+      "BRK Ambiental Participacoes S.A.",
+      "BRK Ambiental S.A."
+    ]
+  },
+  {
+    "canonical_id": "brk_ambiental_uruguaiana_s_a",
+    "nome_principal": "BRK AMBIENTAL URUGUAIANA S.A.",
+    "aliases": [
+      "BRK AMBIENTAL URUGUAIANA S.A."
+    ]
+  },
+  {
+    "canonical_id": "brk_ambiental_regiao_metropolitana_de_maceio_s_a",
+    "nome_principal": "BRK AMBIENTAL - REGIAO METROPOLITANA DE MACEIO S.A.",
+    "aliases": [
+      "BRK AMBIENTAL - REGIAO METROPOLITANA DE MACEIO S.A."
+    ]
+  },
+  {
+    "canonical_id": "brk_ambiental_maua_s_a",
+    "nome_principal": "BRK AMBIENTAL - MAUA S.A.",
+    "aliases": [
+      "BRK AMBIENTAL - MAUA S.A."
+    ]
+  },
+  {
+    "canonical_id": "taesa",
+    "nome_principal": "TRANSMISSORA ALIANCA DE ENERGIA ELETRICA S/A",
+    "aliases": [
+      "TAEE11",
+      "TAEE11F",
+      "TAEE18",
+      "TAEE3",
+      "TAEE3F",
+      "TAEE4",
+      "TAEE4F",
+      "TAESA",
+      "TRANSMISSORA ALIANCA DE ENERGIA ELETRICA S/A",
+      "Taesa",
+      "Transmissora Alianca de Energia Eletrica S.A.",
+      "Transmissora Aliança de Energia Elétrica",
+      "Transmissora Aliança de Energia Elétrica S/A"
+    ]
+  },
+  {
+    "canonical_id": "vibra_energia",
+    "nome_principal": "Vibra Energia S.A",
+    "aliases": [
+      "VBBR3",
+      "Vibra",
+      "Vibra Energia",
+      "Vibra Energia S.A",
+      "BR Distribuidora"
+    ]
+  },
+  {
+    "canonical_id": "comerc",
+    "nome_principal": "COMERC Participações S.A.",
+    "aliases": [
+      "COMERC Participações S.A.",
+      "COMR14",
+      "Comerc",
+      "Comerc Energia",
+      "HÁLIO VALGAS SOLAR Participações S.A."
+    ]
+  },
+  {
+    "canonical_id": "ccr",
+    "nome_principal": "CCR S.A.",
+    "aliases": [
+      "CCR",
+      "CCR S.A."
+    ]
+  },
+  {
+    "canonical_id": "copacabana_energia",
+    "nome_principal": "COPACABANA GERAÇÃO DE ENERGIA E Participações S.A.",
+    "aliases": [
+      "CGEP12",
+      "COPACABANA GERAÇÃO DE ENERGIA E Participações S.A.",
+      "Copacabana Energia",
+      "Copacabana Energia S.A.",
+      "Copacabana GERAÇÃO"
+    ]
+  }
+]
