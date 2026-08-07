@@ -26,6 +26,7 @@
 # COMMAND ----------
 
 import os
+import pandas as pd
 from datetime import datetime, timezone
 
 CATALOGO = "desafio_kinea"
@@ -211,8 +212,7 @@ def ordenar_importancias(valores):
     presentes = list(valores)
     ordenados = [v for v in ORDEM_IMPORTANCIA if v in presentes]
     resto = sorted(v for v in presentes if v not in ORDEM_IMPORTANCIA and v)
-    sem_definicao = [v for v in presentes if not v or str(v).strip() == ""]
-    return ordenados + resto + (["__sem_definicao__"] if sem_definicao else [])
+    return ordenados + resto
 
 
 def bloqueio_relacionado(nome_fonte: str, df_bloqueios) -> str:
@@ -312,20 +312,29 @@ def renderizar_aba_fontes(df, df_bloqueios) -> str:
     df = df.copy()
     mapa_nomes_por_id = dict(zip(df["source_id"], df["nome_fonte"]))
 
+    # Descartadas saem da hierarquia de prioridade -- viram seção própria no final
+    descartadas = df[df["status"].str.contains("descartada", case=False, na=False)]
+    df = df[~df.index.isin(descartadas.index)]
+
     # Separa o que é exibido agrupado do restante
     agrupadas = df[df["grupo_exibicao"].notna() & (df["grupo_exibicao"].astype(str).str.strip() != "")]
-    normais = df[~df.index.isin(agrupadas.index)]
+    normais = df[~df.index.isin(agrupadas.index)].copy()
 
-    ordem = ordenar_importancias(normais["importancia_original"].fillna("").unique())
+    # Segurança: qualquer fonte sem importância definida cai em "Baixa" por
+    # padrão, em vez de virar uma seção "sem prioridade" própria -- o
+    # esperado é que isso nunca aconteça (toda fonte deveria herdar uma
+    # importância ao ser cadastrada), mas evita sumir silenciosamente caso
+    # aconteça de novo no futuro.
+    normais["importancia_original"] = normais["importancia_original"].apply(
+        lambda v: "Baixa" if pd.isna(v) or not str(v).strip() else v
+    )
+
+    ordem = ordenar_importancias(normais["importancia_original"].unique())
 
     blocos = []
     for chave in ordem:
-        if chave == "__sem_definicao__":
-            subset = normais[normais["importancia_original"].isna() | (normais["importancia_original"].str.strip() == "")]
-            titulo = "Sem prioridade definida"
-        else:
-            subset = normais[normais["importancia_original"] == chave]
-            titulo = f"Prioridade {chave}"
+        subset = normais[normais["importancia_original"] == chave]
+        titulo = f"Prioridade {chave}"
 
         if len(subset) == 0:
             continue
@@ -349,6 +358,16 @@ def renderizar_aba_fontes(df, df_bloqueios) -> str:
         blocos.append(f"""
         <div class="section-label">Fontes com múltiplas formas de captura</div>
         <div class="ficha-lista">{fichas_grupo}
+        </div>""")
+
+    # Descartadas — seção própria no final, separada das prioridades
+    if len(descartadas) > 0:
+        fichas_descartadas = "".join(
+            renderizar_ficha_normal(f, mapa_nomes_por_id, df_bloqueios) for _, f in descartadas.iterrows()
+        )
+        blocos.append(f"""
+        <div class="section-label">Fontes descartadas</div>
+        <div class="ficha-lista">{fichas_descartadas}
         </div>""")
 
     blocos.append(caixa_anotacao("fontes"))

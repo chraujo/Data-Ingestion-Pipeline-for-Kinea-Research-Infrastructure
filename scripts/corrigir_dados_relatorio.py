@@ -105,11 +105,71 @@ print(f"[ok] {len(FONTES_AGESAN_RESOLUCOES)} variações da AGESAN agrupadas par
 # COMMAND ----------
 
 # =============================================================================
-# Verificação final
+# 5) Funde linhas duplicadas (fonte "fantasma" do catálogo original, nunca
+#    tocada, coexistindo com a linha real criada quando a fonte foi de fato
+#    implementada via Claude Code). A linha fantasma transfere sua
+#    importancia_original pra linha real antes de ser apagada.
 # =============================================================================
 
+DUPLICATAS = [
+    # (nome_fonte da linha fantasma no catálogo original, source_id da linha real)
+    ("ANA", "ana_noticias"),
+    ("ONS", "ons_noticias"),
+    ("Pipeline", "valor_pipeline"),
+]
+
+for nome_fantasma, source_id_real in DUPLICATAS:
+    linha_fantasma = spark.sql(f"""
+        SELECT importancia_original FROM {TABELA}
+        WHERE nome_fonte = '{nome_fantasma}' AND source_id = '—'
+    """).collect()
+
+    if not linha_fantasma:
+        print(f"[aviso] nenhuma linha fantasma encontrada para '{nome_fantasma}' -- pulando")
+        continue
+
+    importancia_herdada = linha_fantasma[0]["importancia_original"]
+
+    spark.sql(f"""
+        UPDATE {TABELA}
+        SET importancia_original = '{importancia_herdada}'
+        WHERE source_id = '{source_id_real}' AND importancia_original IS NULL
+    """)
+    spark.sql(f"""
+        DELETE FROM {TABELA}
+        WHERE nome_fonte = '{nome_fantasma}' AND source_id = '—'
+    """)
+    print(f"[ok] '{nome_fantasma}' fundida em '{source_id_real}' (importância herdada: {importancia_herdada})")
+
+# COMMAND ----------
+
+# =============================================================================
+# 6) As 3 fontes com importancia_original = "N/D" literal herdam a
+#    prioridade do órgão-pai (mesmo órgão, variação de captura diferente).
+# =============================================================================
+
+HERANCA_PRIORIDADE = {
+    "AGETRANSP — Atos Normativos (Resoluções/Deliberações/Portarias)": "Alta",  # herda de AGETRANSP
+    "CMSE — Atas": "Alta",                                                      # herda de CMSE
+    "CMSE — Resoluções do CMSE": "Alta",                                        # herda de CMSE
+}
+
+for nome_fonte, nova_prioridade in HERANCA_PRIORIDADE.items():
+    nome_escapado = nome_fonte.replace("'", "''")
+    spark.sql(f"""
+        UPDATE {TABELA}
+        SET importancia_original = '{nova_prioridade}'
+        WHERE nome_fonte = '{nome_escapado}' AND importancia_original = 'N/D'
+    """)
+    print(f"[ok] '{nome_fonte}' -> importância '{nova_prioridade}' (herdada do órgão-pai)")
+
+# COMMAND ----------
+
+# Verificação final: não deve sobrar nenhuma fonte coberta/em produção sem
+# importancia_original, nem nenhuma com o valor literal "N/D"
 display(spark.sql(f"""
-    SELECT source_id, nome_fonte, status, coberta_por, grupo_exibicao
+    SELECT source_id, nome_fonte, status, importancia_original
     FROM {TABELA}
-    WHERE nome_fonte ILIKE '%megawhat%' OR nome_fonte ILIKE '%agems%' OR grupo_exibicao IS NOT NULL
+    WHERE importancia_original IS NULL OR importancia_original = 'N/D'
+    ORDER BY nome_fonte
 """))
