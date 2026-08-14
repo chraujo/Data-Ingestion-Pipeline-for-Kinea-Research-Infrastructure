@@ -21,13 +21,13 @@ antes do briefing formal chegar.
 - **GitHub CLI**: autenticada via `gh auth login`, usuário `chraujo`
 - **Repositório**: `https://github.com/chraujo/Data-Ingestion-Pipeline-for-Kinea-Research-Infrastructure`
 - **Git folder no Databricks**: já linkado ao mesmo repo acima.
-  - ID: `2082316997975725`
+  - ID: `1430318475591826`
   - Caminho no Workspace: `/Workspace/Shared/Research_Infra/Data-Ingestion-Pipeline-for-Kinea-Research-Infrastructure`
 
 ### Fluxo de sincronização (não é automático — cada lado precisa de ação manual)
 
 ```
-edita local (VS Code) → git push → databricks repos update 2082316997975725 --branch main --profile kinea-desafio
+edita local (VS Code) → git push → databricks repos update 1430318475591826 --branch main --profile kinea-desafio
 ```
 
 Sem o `repos update`, o Git folder no Databricks **não** reflete o push sozinho.
