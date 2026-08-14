@@ -846,25 +846,22 @@ EMAILS_DESTINATARIOS = [
 ]
 
 if ENVIAR_EMAIL:
-    _linha_link = (
-        f'<p><a href="{LINK_INTERATIVO}">Abra a versão interativa aqui</a> '
-        f"para expandir os detalhes de cada fonte (recomendado, especialmente no Outlook).</p>"
-        if LINK_INTERATIVO else ""
-    )
-    for _email in EMAILS_DESTINATARIOS:
-        _payload = _json.dumps({
-            "body": f"<p>Relatório de progresso semanal do projeto de Infraestrutura, gerado em {AGORA_LEGIVEL}.</p>"
-                    f"<p>O relatório completo está em anexo.</p>"
-                    f"{_linha_link}",
-            "to": _email,
-            "subject": f"Relatório de Progresso - Infraestrutura - {AGORA_ISO}",
-            "attachmentPath": [caminho_completo],
-            "attachment_sta": "staceokna",
-        })
-        _headers = {"Content-Type": "application/json"}
+    try:
         _url_email = os.environ["URL_EMAIL"]
-        _resposta = requests.request("POST", _url_email, headers=_headers, data=_payload, allow_redirects=False)
-        print(f"[email] enviado para {_email}: status {_resposta.status_code}")
+        for _email in EMAILS_DESTINATARIOS:
+            _payload = _json.dumps({
+                "body": f"<p>Relatório de progresso semanal do projeto de Infraestrutura, gerado em {AGORA_LEGIVEL}.</p>"
+                        f"<p>O relatório completo está em anexo.</p>",
+                "to": _email,
+                "subject": f"Relatório de Progresso - Infraestrutura - {AGORA_ISO}",
+                "attachmentPath": [caminho_completo],
+                "attachment_sta": "staceokna",
+            })
+            _headers = {"Content-Type": "application/json"}
+            _resposta = requests.request("POST", _url_email, headers=_headers, data=_payload, allow_redirects=False)
+            print(f"[email] enviado para {_email}: status {_resposta.status_code}")
+    except Exception as e:
+        print(f"[aviso] Falha ao enviar e-mail (URL_EMAIL não configurada ou outro erro): {e}")
+        print("[aviso] O relatório foi gerado e salvo normalmente -- só o envio falhou.")
 else:
     print("[email] ENVIAR_EMAIL=False -- pulado")
-
