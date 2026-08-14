@@ -192,15 +192,19 @@ print(f"[ok] Cópia local salva em: {caminho_completo_local}")
 ENVIAR_EMAIL = True
 
 if ENVIAR_EMAIL:
-    for _email in EMAILS_RESUMO_SEMANAL:
-        _payload = json.dumps({
-            "body": html_para_email,
-            "to": _email,
-            "subject": f"Resumo Semanal - Infraestrutura - {AGORA_ISO}",
-        })
-        _headers = {"Content-Type": "application/json"}
+    try:
         _url_email = os.environ["URL_EMAIL"]
-        _resposta = requests.request("POST", _url_email, headers=_headers, data=_payload, allow_redirects=False)
-        print(f"[email] enviado para {_email}: status {_resposta.status_code}")
+        for _email in EMAILS_RESUMO_SEMANAL:
+            _payload = json.dumps({
+                "body": html_para_email,
+                "to": _email,
+                "subject": f"Resumo Semanal - Infraestrutura - {AGORA_ISO}",
+            })
+            _headers = {"Content-Type": "application/json"}
+            _resposta = requests.request("POST", _url_email, headers=_headers, data=_payload, allow_redirects=False)
+            print(f"[email] enviado para {_email}: status {_resposta.status_code}")
+    except Exception as e:
+        print(f"[aviso] Falha ao enviar e-mail (URL_EMAIL não configurada ou outro erro): {e}")
+        print("[aviso] O resumo semanal foi gerado e salvo normalmente -- só o envio falhou.")
 else:
     print("[email] ENVIAR_EMAIL=False -- pulado")
