@@ -22,7 +22,19 @@ quiser embaixo do título — o relatório mostra esse texto como está.
 
 ## Bloqueios
 
-(anotações sobre bloqueios e fontes descartadas)
+**AGRESE — Saneamento (Sergipe)**, investigada em 14/08/2026, ainda sem
+registro formal em `controle_fontes`/`controle_bloqueios`: o feed RSS
+(`agrese.se.gov.br/feed/`) funciona e lista os itens normalmente, mas as
+URLs de cada notícia devolvem HTTP 301 para uma página genérica sem
+conteúdo — tanto o link antigo do WordPress (`agrese.se.gov.br/[slug]/`)
+quanto o novo caminho do portal central do governo de Sergipe
+(`www.se.gov.br/agencia/noticias/governo/[slug]`, achado via busca) estão
+quebrados agora. O Google já indexou conteúdo real nesse portal no
+passado, o que sugere instabilidade atual do lado do governo de Sergipe,
+não bloqueio deliberado nem característica permanente. Vale retestar em
+algumas semanas antes de decidir se encaixa no dispatcher genérico de RSS
+(`ingest-news-rss-infra`, mesmo padrão da ARISB-MG) ou se precisa virar
+bloqueio formal.
 
 ## Fases
 
