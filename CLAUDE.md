@@ -131,6 +131,17 @@ desfechos todos cobertos.
   permissão de admin do workspace, fora do acesso atual. Esperado que esses
   dois apareçam com `status = 'Erro'` até isso ser resolvido por um admin.
 - **AGENERSA**: bloqueada por `robots.txt`, não implementar scraping.
+- **ANAC** (`gov.br/anac`): bloqueada por proteção anti-bot ativa (F5/Shape,
+  cookie `TSPD`) — mesmo uma requisição HTTP simples e isolada recebe página
+  de CAPTCHA em vez do conteúdo real (não é `robots.txt`, é WAF). Requisições
+  repetidas escalam para HTTP 429 e depois bloqueio temporário do IP. Página
+  de notícias identificada (`gov.br/anac/pt-br/noticias/ultimas-noticias-2`,
+  possível RSS em `gov.br/anac/RSS`), mas não validada porque cai atrás do
+  mesmo bloqueio. Diferente do bloqueio do Selenium (Brazil Journal/PPI): não
+  há garantia de que um navegador automatizado passe por essa proteção, já
+  que esse tipo de WAF costuma detectar browsers headless também — não
+  implementar scraping até alguém validar acesso via navegador real dentro
+  do cluster Databricks.
 
 ## Notebooks e onde ficam no repo
 
