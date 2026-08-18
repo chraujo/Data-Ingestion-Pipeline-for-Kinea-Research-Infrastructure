@@ -153,6 +153,17 @@ desfechos todos cobertos.
   que esse tipo de WAF costuma detectar browsers headless também — não
   implementar scraping até alguém validar acesso via navegador real dentro
   do cluster Databricks.
+- **AGRESE** (`agrese.se.gov.br`, Saneamento — Sergipe): bloqueada, mas
+  **diferente das outras acima** — não é WAF nem `robots.txt` (que permite
+  tudo). URLs de *posts* de notícia devolvem HTTP 301 para uma página
+  genérica (`https://www.se.gov.br/agencia`), enquanto páginas estáticas do
+  mesmo site (`/institucional/`, `/portarias/`) respondem 200 normalmente —
+  padrão que sugere bug de redirecionamento canônico no WordPress do
+  governo de Sergipe, não decisão deliberada. Feed RSS funciona mas sem
+  conteúdo novo há semanas; API REST (`/wp-json/wp/v2/posts`) trancada
+  (401). Classificada como **provavelmente reversível** — retestar em
+  algumas semanas antes de tentar de novo (ver `controle_bloqueios`,
+  `blq_013`, e `registrar_bloqueio_agrese_saneamento.py`).
 
 ## Notebooks e onde ficam no repo
 

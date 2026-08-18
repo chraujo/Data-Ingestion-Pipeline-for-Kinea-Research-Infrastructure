@@ -22,19 +22,24 @@ quiser embaixo do título — o relatório mostra esse texto como está.
 
 ## Bloqueios
 
-**AGRESE — Saneamento (Sergipe)**, investigada em 14/08/2026, ainda sem
-registro formal em `controle_fontes`/`controle_bloqueios`: o feed RSS
-(`agrese.se.gov.br/feed/`) funciona e lista os itens normalmente, mas as
-URLs de cada notícia devolvem HTTP 301 para uma página genérica sem
-conteúdo — tanto o link antigo do WordPress (`agrese.se.gov.br/[slug]/`)
-quanto o novo caminho do portal central do governo de Sergipe
-(`www.se.gov.br/agencia/noticias/governo/[slug]`, achado via busca) estão
-quebrados agora. O Google já indexou conteúdo real nesse portal no
-passado, o que sugere instabilidade atual do lado do governo de Sergipe,
-não bloqueio deliberado nem característica permanente. Vale retestar em
-algumas semanas antes de decidir se encaixa no dispatcher genérico de RSS
-(`ingest-news-rss-infra`, mesmo padrão da ARISB-MG) ou se precisa virar
-bloqueio formal.
+**AGRESE — Saneamento (Sergipe)**, formalizada como bloqueio em 18/08/2026
+(`controle_fontes`/`controle_bloqueios`, `blq_013`), após reteste da
+instabilidade anotada em 14/08/2026. Diagnóstico mais completo desta
+rodada: `robots.txt` permite tudo; homepage e páginas estáticas
+(`/institucional/`, `/portarias/`) respondem HTTP 200 normalmente; feed
+RSS (`agrese.se.gov.br/feed/`) responde 200 e lista itens, mas o mais
+recente é de 30/06/2026 — quase 7 semanas sem conteúdo novo. URLs de
+**posts** de notícia (o que o feed lista) devolvem HTTP 301 para
+`https://www.se.gov.br/agencia` (página genérica) — testado com/sem
+`www.`, sem barra final, e via permalink "feio" (`?p=ID`), todos
+convergem pro mesmo redirecionamento quebrado. API REST do WordPress
+(`/wp-json/wp/v2/posts`) devolve 401, trancada. O padrão (só posts
+quebrados, páginas estáticas OK) sugere bug de redirecionamento canônico
+no WordPress do governo de Sergipe, não bloqueio deliberado — sem WAF,
+sem `robots.txt` restritivo, sem CAPTCHA. Classificado como
+**provavelmente reversível**; recomendado retestar em algumas semanas —
+se voltar a funcionar, encaixa direto no dispatcher genérico de RSS
+(`ingest-news-rss-infra`, mesmo padrão da ARISB-MG).
 
 ## Fases
 
