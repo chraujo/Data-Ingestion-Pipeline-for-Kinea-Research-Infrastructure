@@ -77,6 +77,17 @@ AGESAN-RS (`agesan_rs_resolucoes`, `_csr`, `_dc`) estão registradas como uma
 (herdado assim do Excel original). O `MERGE INTO` do dispatcher de PDF não
 encontra match para elas — precisa separar em 3 linhas distintas.
 
+**Pendência conhecida, não resolvida ainda**: ~25 Resoluções da ARPE
+(`arpe_resolucoes`) — a maioria das mais recentes de 2026, e algumas antigas
+esparsas — não têm link `.pdf` direto na listagem
+(`/legislacao/resolucoes-arpe`); o link vai para uma página HTML própria
+(`/resolucao-arpe-n-XXX`) com o texto integral embutido, sem PDF associado.
+Isso não se encaixa no contrato de `processar_pdf()` (baixa bytes, extrai via
+`pypdf`) — essas resoluções ficam de fora da captura por ora, contadas no log
+do dispatcher como "ignoradas (sem PDF direto)". As ~300 restantes (com PDF
+direto, cobrindo o histórico completo desde 2001) já são capturadas
+normalmente via `listar_arpe_resolucoes()` em `ingest-PDF.ipynb`.
+
 ## Convenção: como um dispatcher atualiza `controle_fontes`
 
 Toda fonte, ao final do processamento (sucesso ou falha), deve chamar a
@@ -149,7 +160,7 @@ desfechos todos cobertos.
 |---|---|---|
 | `ingest-news-rss-infra` | `ingestores/Notebooks unificados/` | RSS genérico (CreditoPrivado360, NeoFeed, Agência Eixos, Agência Infra) |
 | `ingest-scraping` | `ingestores/Notebooks unificados/` | Scraping genérico (Acende Brasil, ANTT, AGESAN Notícias, PSR/Exame) |
-| `ingest-PDF` | `ingestores/Notebooks unificados/` | PDFs genérico (EPE-SEGOV/MS, AGESAN Resoluções) |
+| `ingest-PDF` | `ingestores/Notebooks unificados/` | PDFs genérico (EPE-SEGOV/MS, AGESAN Resoluções, CCEE Atas da Diretoria, ARPE Resoluções) |
 | `ingest-diario-oficial-ms` | `ingestores/GERAL/` | Diário Oficial de MS |
 | `ingest-news-infra-journal` | `ingestores/GERAL/` | Brazil Journal / INFRA Journal (Selenium) |
 | `ingest-news-pipeline` | `ingestores/GERAL/` | Valor (pipelinevalor.globo.com) |
