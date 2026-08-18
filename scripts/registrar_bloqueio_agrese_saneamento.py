@@ -52,7 +52,7 @@ NOTAS_FONTES = (
     "recente é de 30/06/2026 -- quase 7 semanas sem conteúdo novo. URLs de "
     "POSTS de notícia (o que o feed lista) devolvem 301 para "
     "https://www.se.gov.br/agencia (página genérica) -- testado com/sem "
-    "www., sem barra final, e via permalink '?p=ID', todos convergem pro "
+    "www., sem barra final, e via permalink no formato ?p=ID, todos convergem pro "
     "mesmo redirecionamento quebrado. API REST do WordPress "
     "(/wp-json/wp/v2/posts) devolve 401, trancada. Padrão (só posts "
     "quebrados, páginas OK) sugere bug de redirecionamento canônico no "
