@@ -133,6 +133,24 @@ desfechos todos cobertos.
 6. **`PRIMARY KEY` no Unity Catalog exige `NOT NULL` explícito** na coluna
    antes — `ALTER TABLE ... ALTER COLUMN x SET NOT NULL` antes do
    `ADD CONSTRAINT`.
+7. **Certificado TLS incompleto no servidor** (ARTEMIG): `httpx` e
+   `curl_cffi` falham com "unable to get local issuer certificate" —
+   confirmado rodando no próprio cluster Databricks, não só localmente
+   (servidor não envia o certificado intermediário). Corrigido com um
+   parâmetro `verify` opcional (default `True`) em `baixar_pagina()` /
+   `baixar_pdf()` / `processar_pdf()` no `ingest-PDF.ipynb`, ligado por
+   `config["verificar_ssl"]` — só a ARTEMIG usa `verificar_ssl=False`,
+   as outras fontes não são afetadas.
+8. **`atualizar_status_fonte` não atualiza nada, silenciosamente, se o
+   `source_id` do placeholder não bater** (AGERGS): o `MERGE INTO` só
+   tem cláusula `WHEN MATCHED` — se a linha em `controle_fontes` ainda
+   estiver com `source_id='—'` quando o dispatcher roda pela primeira
+   vez, a captura funciona e os arquivos são salvos no Volume
+   normalmente, mas `status`/`docs_capturados` não são atualizados (sem
+   erro, sem aviso). **Sempre fazer o UPDATE do `source_id` no
+   placeholder ANTES da primeira execução em produção**, não depois —
+   confirmar com um `SELECT` se `docs_capturados` continuar `0`/`NULL`
+   depois de uma execução que deveria ter capturado itens.
 
 ## Bloqueios conhecidos (não são bugs nossos, é infraestrutura fora do alcance)
 
@@ -192,7 +210,7 @@ desfechos todos cobertos.
 |---|---|---|
 | `ingest-news-rss-infra` | `ingestores/Notebooks unificados/` | RSS genérico (CreditoPrivado360, NeoFeed, Agência Eixos, Agência Infra) |
 | `ingest-scraping` | `ingestores/Notebooks unificados/` | Scraping genérico (Acende Brasil, ANTT, AGESAN Notícias, PSR/Exame) |
-| `ingest-PDF` | `ingestores/Notebooks unificados/` | PDFs genérico (EPE-SEGOV/MS, AGESAN Resoluções, CCEE Atas da Diretoria, ARPE Resoluções) |
+| `ingest-PDF` | `ingestores/Notebooks unificados/` | PDFs genérico (EPE-SEGOV/MS, AGESAN Resoluções, CCEE Atas da Diretoria, ARPE Resoluções, ARTEMIG Documentos) |
 | `ingest-diario-oficial-ms` | `ingestores/GERAL/` | Diário Oficial de MS |
 | `ingest-news-infra-journal` | `ingestores/GERAL/` | Brazil Journal / INFRA Journal (Selenium) |
 | `ingest-news-pipeline` | `ingestores/GERAL/` | Valor (pipelinevalor.globo.com) |
