@@ -77,6 +77,17 @@ AGESAN-RS (`agesan_rs_resolucoes`, `_csr`, `_dc`) estão registradas como uma
 (herdado assim do Excel original). O `MERGE INTO` do dispatcher de PDF não
 encontra match para elas — precisa separar em 3 linhas distintas.
 
+**Pendência conhecida, não resolvida ainda**: ~25 Resoluções da ARPE
+(`arpe_resolucoes`) — a maioria das mais recentes de 2026, e algumas antigas
+esparsas — não têm link `.pdf` direto na listagem
+(`/legislacao/resolucoes-arpe`); o link vai para uma página HTML própria
+(`/resolucao-arpe-n-XXX`) com o texto integral embutido, sem PDF associado.
+Isso não se encaixa no contrato de `processar_pdf()` (baixa bytes, extrai via
+`pypdf`) — essas resoluções ficam de fora da captura por ora, contadas no log
+do dispatcher como "ignoradas (sem PDF direto)". As ~300 restantes (com PDF
+direto, cobrindo o histórico completo desde 2001) já são capturadas
+normalmente via `listar_arpe_resolucoes()` em `ingest-PDF.ipynb`.
+
 ## Convenção: como um dispatcher atualiza `controle_fontes`
 
 Toda fonte, ao final do processamento (sucesso ou falha), deve chamar a
@@ -142,6 +153,38 @@ desfechos todos cobertos.
   que esse tipo de WAF costuma detectar browsers headless também — não
   implementar scraping até alguém validar acesso via navegador real dentro
   do cluster Databricks.
+- **AGRESE** (`agrese.se.gov.br`, Saneamento — Sergipe): bloqueada, mas
+  **diferente das outras acima** — não é WAF nem `robots.txt` (que permite
+  tudo). URLs de *posts* de notícia devolvem HTTP 301 para uma página
+  genérica (`https://www.se.gov.br/agencia`), enquanto páginas estáticas do
+  mesmo site (`/institucional/`, `/portarias/`) respondem 200 normalmente —
+  padrão que sugere bug de redirecionamento canônico no WordPress do
+  governo de Sergipe, não decisão deliberada. Feed RSS funciona mas sem
+  conteúdo novo há semanas; API REST (`/wp-json/wp/v2/posts`) trancada
+  (401). Classificada como **provavelmente reversível** — retestar em
+  algumas semanas antes de tentar de novo (ver `controle_bloqueios`,
+  `blq_013`, e `registrar_bloqueio_agrese_saneamento.py`).
+- **ARTESP** (`artesp.sp.gov.br`, Transporte — SP): bloqueada por dois
+  problemas independentes, empilhados. (1) WAF ativo (Imperva/Incapsula)
+  em `www.artesp.sp.gov.br` — a mesma URL, com o mesmo User-Agent de
+  navegador, alterna entre devolver o HTML real da página e devolver uma
+  página de challenge JS ("Pardon Our Interruption", cookies
+  `visid_incap_*`/`incap_ses_*`/`nlbi_*`), sempre com HTTP 200 (nunca
+  403/429) — mesma categoria de risco do bloqueio da ANAC (WAF F5/Shape),
+  vendor diferente, comportamento mais intermitente (ANAC bloqueia quase
+  sempre; aqui alterna). (2) Quando o WAF deixa passar: a página "Sala de
+  Imprensa" (`/artesp/canais-de-comunicacao/sala-de-imprensa`) tem um
+  portlet de listagem de notícias quebrado — exibe aviso nativo do CMS
+  ("Configuração inválida localizada. Entre em contato com o
+  administrador.") em vez da lista de itens; bug do lado da ARTESP,
+  independente do WAF. (3) `/robots.txt` não é um robots.txt real —
+  devolve o mesmo HTML da home institucional, não arquivo de diretivas.
+  Não implementar scraping até validação com navegador real dentro do
+  cluster Databricks — sem garantia de que resolveria (WAF pode detectar
+  headless também), e o portlet quebrado precisaria ser corrigido do lado
+  da ARTESP antes de qualquer captura fazer sentido de qualquer forma
+  (ver `ingestores/TRANSPORTE/teste_artesp.ipynb`, `controle_bloqueios`,
+  `blq_014`, e `registrar_bloqueio_artesp.py`).
 
 ## Notebooks e onde ficam no repo
 
@@ -149,7 +192,7 @@ desfechos todos cobertos.
 |---|---|---|
 | `ingest-news-rss-infra` | `ingestores/Notebooks unificados/` | RSS genérico (CreditoPrivado360, NeoFeed, Agência Eixos, Agência Infra) |
 | `ingest-scraping` | `ingestores/Notebooks unificados/` | Scraping genérico (Acende Brasil, ANTT, AGESAN Notícias, PSR/Exame) |
-| `ingest-PDF` | `ingestores/Notebooks unificados/` | PDFs genérico (EPE-SEGOV/MS, AGESAN Resoluções) |
+| `ingest-PDF` | `ingestores/Notebooks unificados/` | PDFs genérico (EPE-SEGOV/MS, AGESAN Resoluções, CCEE Atas da Diretoria, ARPE Resoluções) |
 | `ingest-diario-oficial-ms` | `ingestores/GERAL/` | Diário Oficial de MS |
 | `ingest-news-infra-journal` | `ingestores/GERAL/` | Brazil Journal / INFRA Journal (Selenium) |
 | `ingest-news-pipeline` | `ingestores/GERAL/` | Valor (pipelinevalor.globo.com) |
