@@ -164,6 +164,27 @@ desfechos todos cobertos.
   (401). Classificada como **provavelmente reversível** — retestar em
   algumas semanas antes de tentar de novo (ver `controle_bloqueios`,
   `blq_013`, e `registrar_bloqueio_agrese_saneamento.py`).
+- **ARTESP** (`artesp.sp.gov.br`, Transporte — SP): bloqueada por dois
+  problemas independentes, empilhados. (1) WAF ativo (Imperva/Incapsula)
+  em `www.artesp.sp.gov.br` — a mesma URL, com o mesmo User-Agent de
+  navegador, alterna entre devolver o HTML real da página e devolver uma
+  página de challenge JS ("Pardon Our Interruption", cookies
+  `visid_incap_*`/`incap_ses_*`/`nlbi_*`), sempre com HTTP 200 (nunca
+  403/429) — mesma categoria de risco do bloqueio da ANAC (WAF F5/Shape),
+  vendor diferente, comportamento mais intermitente (ANAC bloqueia quase
+  sempre; aqui alterna). (2) Quando o WAF deixa passar: a página "Sala de
+  Imprensa" (`/artesp/canais-de-comunicacao/sala-de-imprensa`) tem um
+  portlet de listagem de notícias quebrado — exibe aviso nativo do CMS
+  ("Configuração inválida localizada. Entre em contato com o
+  administrador.") em vez da lista de itens; bug do lado da ARTESP,
+  independente do WAF. (3) `/robots.txt` não é um robots.txt real —
+  devolve o mesmo HTML da home institucional, não arquivo de diretivas.
+  Não implementar scraping até validação com navegador real dentro do
+  cluster Databricks — sem garantia de que resolveria (WAF pode detectar
+  headless também), e o portlet quebrado precisaria ser corrigido do lado
+  da ARTESP antes de qualquer captura fazer sentido de qualquer forma
+  (ver `ingestores/TRANSPORTE/teste_artesp.ipynb`, `controle_bloqueios`,
+  `blq_014`, e `registrar_bloqueio_artesp.py`).
 
 ## Notebooks e onde ficam no repo
 

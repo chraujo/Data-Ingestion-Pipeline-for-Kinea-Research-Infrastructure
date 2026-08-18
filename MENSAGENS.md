@@ -41,6 +41,25 @@ sem `robots.txt` restritivo, sem CAPTCHA. Classificado como
 se voltar a funcionar, encaixa direto no dispatcher genérico de RSS
 (`ingest-news-rss-infra`, mesmo padrão da ARISB-MG).
 
+**ARTESP — Transporte (SP)**, formalizada como bloqueio em 18/08/2026
+(`controle_fontes`/`controle_bloqueios`, `blq_014`), depois do teste
+isolado de Fase 1 (`ingestores/TRANSPORTE/teste_artesp.ipynb`). Dois
+problemas independentes, empilhados: (1) WAF ativo (Imperva/Incapsula) em
+`www.artesp.sp.gov.br` — a mesma URL, com o mesmo User-Agent de navegador,
+alterna entre devolver o HTML real da página e devolver uma página de
+challenge JS ("Pardon Our Interruption", cookies
+`visid_incap_*`/`incap_ses_*`/`nlbi_*`), sempre com HTTP 200 (nunca
+403/429) — mesma categoria de risco do bloqueio da ANAC (WAF F5/Shape),
+vendor diferente, comportamento mais intermitente; (2) quando o WAF deixa
+passar, a página "Sala de Imprensa" tem um portlet de listagem de
+notícias quebrado — exibe aviso nativo do CMS ("Configuração inválida
+localizada. Entre em contato com o administrador.") em vez da lista de
+itens, bug do lado da ARTESP, independente do WAF; (3) `/robots.txt` não
+é um robots.txt real — devolve o mesmo HTML da home institucional.
+Classificado como incerto se é reversível — depende de validação com
+navegador real dentro do cluster Databricks (sem garantia, WAF pode
+detectar headless) e de a própria ARTESP corrigir o portlet quebrado.
+
 ## Fases
 
 (anotações sobre o andamento das fases/entregáveis do desafio)
