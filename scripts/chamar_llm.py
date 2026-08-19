@@ -3,43 +3,45 @@
 # chamar_llm.py
 #
 # Função compartilhada de chamada de LLM, usada por extrair_riscos_credito.py
-# e montar_amostra_json_formal.py. Baseada no padrão real já usado no
-# workspace (templates/Exemplo - GPT - Function Calling.ipynb) -- mesma
-# conta Azure OpenAI, mesmo secret scope.
+# e montar_amostra_json_formal.py. Mesma conta Azure OpenAI e mesmo secret
+# scope já usados no workspace (visto em
+# templates/Exemplo - GPT - Function Calling.ipynb).
+#
+# REVISADO: a primeira versão deste arquivo tentava instalar
+# `openai==0.28.1` (sintaxe antiga, igual ao notebook de exemplo) -- só
+# que o cluster já tem openai 2.14.0 instalado, do qual OUTRAS coisas no
+# mesmo cluster dependem (langchain-openai, litellm). Forçar a versão
+# antiga conflitava com esse ambiente e deixava tudo num estado quebrado.
+# Esta versão usa a sintaxe ATUAL da biblioteca (client.chat.completions),
+# sem instalar nem trocar versão nenhuma -- só usa o que já está lá.
 #
 # DIFERENÇA proposital em relação ao exemplo: o exemplo usa Function
 # Calling (schema por chamada). Aqui uso JSON via instrução de texto
 # (json.loads na resposta) -- porque extrair_riscos_credito.py já foi
 # construído com uma assinatura simples, chamar_llm(system, user), sem
-# lugar pra passar um schema por chamada. Function Calling seria mais
-# robusto (o modelo é forçado à estrutura), mas exigiria reescrever o
-# módulo já pronto -- essa troca não parecia valer a pena só por isso.
+# lugar pra passar um schema por chamada.
 #
 # CONFERIR ANTES DE RODAR EM PRODUÇÃO:
-#   1. O nome do "engine" (`gpt35turbo16k` no exemplo) pode não ser o
-#      disponível/aprovado para este caso de uso -- confirmar com quem
-#      administra a conta Azure OpenAI (akvanalyticsdevkna).
+#   1. O nome do "model"/deployment (`gpt35turbo16k` no exemplo antigo)
+#      pode não ser o disponível/aprovado para este caso de uso --
+#      confirmar com quem administra a conta Azure OpenAI.
 #   2. O secret scope 'akvanalyticsdevkna' precisa estar acessível pro seu
 #      usuário/cluster -- se der erro de permissão aqui, é isso.
 # =============================================================================
 
 # COMMAND ----------
 
-# MAGIC %pip install openai==0.28.1
-# MAGIC dbutils.library.restartPython()
-
-# COMMAND ----------
-
 import re
 import json
-import openai
+from openai import AzureOpenAI
 
-openai.api_type = "azure"
-openai.api_base = "https://openaikinea.openai.azure.com/"
-openai.api_version = "2023-12-01-preview"
-openai.api_key = dbutils.secrets.get('akvanalyticsdevkna', 'openai')
+client = AzureOpenAI(
+    api_key=dbutils.secrets.get('akvanalyticsdevkna', 'openai'),
+    api_version="2023-12-01-preview",
+    azure_endpoint="https://openaikinea.openai.azure.com/",
+)
 
-LLM_ENGINE = "gpt35turbo16k"  # confirmar se é o engine certo pra este caso de uso
+LLM_ENGINE = "gpt35turbo16k"  # confirmar se é o deployment certo pra este caso de uso
 
 # COMMAND ----------
 
@@ -60,8 +62,8 @@ def chamar_llm(system: str, user: str) -> dict:
     O prompt (`system`) já pede explicitamente pra resposta vir em JSON --
     essa função só faz a chamada e faz o parse, sem adicionar Function
     Calling por cima (ver nota no topo do arquivo)."""
-    completion = openai.ChatCompletion.create(
-        engine=LLM_ENGINE,
+    completion = client.chat.completions.create(
+        model=LLM_ENGINE,
         messages=[
             {"role": "system", "content": system},
             {"role": "user", "content": user},
@@ -72,10 +74,9 @@ def chamar_llm(system: str, user: str) -> dict:
         top_p=1,
         frequency_penalty=0,
         presence_penalty=0,
-        stop=None,
     )
 
-    texto_resposta = completion.to_dict()["choices"][0]["message"]["content"]
+    texto_resposta = completion.choices[0].message.content
     texto_limpo = _limpar_resposta_json(texto_resposta)
 
     try:
@@ -87,3 +88,4 @@ def chamar_llm(system: str, user: str) -> dict:
         raise ValueError(
             f"Resposta do LLM não é JSON válido: {e}\nResposta bruta: {texto_resposta[:500]}"
         )
+
