@@ -36,7 +36,7 @@ import json
 from openai import AzureOpenAI
 
 client = AzureOpenAI(
-    api_key=dbutils.secrets.get('akvdesafiokinea', 'azure-oai-dk'),
+    api_key=dbutils.secrets.get('akvdesafiokinea', 'gpt-key'),
     api_version="2023-12-01-preview",
     azure_endpoint="https://openaikinea.openai.azure.com/",
 )
