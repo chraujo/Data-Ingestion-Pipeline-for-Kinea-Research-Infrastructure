@@ -34,7 +34,7 @@ SCHEMA = "research"
 PREFIXO = "controle_"
 
 RAIZ_REPO = "/Workspace/Shared/Research_Infra/Data-Ingestion-Pipeline-for-Kinea-Research-Infrastructure"
-CAMINHO_MENSAGENS = f"{RAIZ_REPO}/MENSAGENS.md"
+CAMINHO_MENSAGENS = f"{RAIZ_REPO}/docs/MENSAGENS.md"
 
 PASTA_SAIDA = "/Volumes/desafio_kinea/research/research_volume/relatorios"
 os.makedirs(PASTA_SAIDA, exist_ok=True)
