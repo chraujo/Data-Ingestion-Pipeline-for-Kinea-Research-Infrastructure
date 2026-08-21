@@ -38,7 +38,7 @@ from openai import AzureOpenAI
 client = AzureOpenAI(
     api_key=dbutils.secrets.get('akvdesafiokinea', 'gpt-key'),
     api_version="2023-12-01-preview",
-    azure_endpoint="https://openaikinea.openai.azure.com/",
+    azure_endpoint="https://oai-dk.openai.azure.com/",
 )
 
 LLM_ENGINE = "gpt35turbo16k"  # confirmar se é o deployment certo pra este caso de uso
