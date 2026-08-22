@@ -2,29 +2,45 @@
 # =============================================================================
 # montar_amostra_json_formal.py
 #
-# Constrói a amostra formal (Seção 5 do briefing) -- pipeline PRÓPRIO,
-# independente do report_agent (que é caixa-preta, só devolve HTML). Roda
-# direto em cima dos .txt/.json que os dispatchers já salvam no Volume.
+# Constrói a amostra formal (Seção 5 do briefing oficial) -- pipeline
+# PRÓPRIO, independente do report_agent (que é caixa-preta, só devolve
+# HTML). Roda direto em cima dos .txt/.json que os dispatchers já salvam
+# no Volume.
+#
+# REVISADO para conformidade com o schema oficial do briefing
+# (briefing_desafiantes_kinea_research.pdf, Seção 5.2). Mudanças desta
+# versão em relação à anterior:
+#   - Campos novos: id (UUID v4), captured_at, language, area, subarea,
+#     priority, source_name, source_url, source_type, summary,
+#     sentiment_score, cluster_size, cluster_sources
+#   - "area" fixo em "Infra" (decisão confirmada com o usuário -- o
+#     schema oficial só previa CRI|CRA|SS|múltiplo; a granularidade de
+#     setor que já usávamos (Energia e Gás, Saneamento, etc.) migrou para
+#     "subarea", que é onde o schema oficial já guarda esse tipo de
+#     detalhe fino (ex.: CRA usa subarea="sucroalcooleiro")
+#   - sentiment: renomeado de sentiment_credor -> sentiment (nome exigido
+#     pelo schema), valores em minúsculo; ganhou sentiment_score numérico
+#     (-1.0 a +1.0) na MESMA chamada de LLM (evita chamada extra)
+#   - relevance_score: reformulado de "só menção de portfólio, 4 degraus"
+#     para fórmula contínua (0.0-1.0) combinando os 4 fatores sugeridos
+#     na Seção 6.4 do briefing: prioridade da fonte, presença de
+#     portfólio, valor monetário relevante, tags críticas -- TUDO
+#     calculado por código, documentado, auditável (nunca "caixa preta")
 #
 # Etapas:
 #   A. Seleção de amostra representativa (código, não LLM)
-#   B. Clustering determinístico (código, não LLM -- cluster_id precisa
-#      ser reproduzível, diferente do clustering "criativo" do LLM usado
-#      no briefing diário)
-#   C. Enriquecimento por notícia:
-#      - riscos de crédito -> reaproveita extrair_riscos_credito.py, sem
-#        reescrever a lógica
-#      - relevance_score -> calculado por CÓDIGO, fórmula documentada
-#        abaixo (por menção de portfólio, decisão confirmada com o
-#        usuário -- não é o LLM "achando" um número)
-#      - sentimento do credor -> LLM, Positivo/Neutro/Negativo
-#      - tags -> LLM, vocabulário fechado (confirmado com o usuário),
-#        multi-label
-#   D. Montagem do JSON por notícia, no formato do schema formal
+#   B. Clustering determinístico por similaridade de título (código, não
+#      LLM -- cluster_id precisa ser reproduzível). NOTA: o briefing
+#      oficial (Seção 7.1) recomenda clustering semântico via embeddings
+#      -- este script ainda usa comparação de título por string, mais
+#      simples; upgrade para embeddings é item separado, ainda pendente.
+#   C. Enriquecimento por notícia (riscos de crédito, sentimento+score,
+#      resumo, tags, relevance_score)
+#   D. Montagem do JSON por notícia, no formato do schema oficial
 #
-# IMPORTANTE: `chamar_llm(system, user)` é fornecida pelo ambiente
-# (mesma função já usada em extrair_riscos_credito.py) -- este script não
-# reimplementa chamada de API.
+# IMPORTANTE: `chamar_llm(system, user)` e `extrair_riscos_credito(...)`
+# são fornecidas pelo ambiente via %run -- este script não as redefine.
+# `spark` também é fornecido pelo ambiente Databricks.
 # =============================================================================
 
 # COMMAND ----------
@@ -32,8 +48,9 @@
 import os
 import re
 import json
+import uuid
 import unicodedata
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from difflib import SequenceMatcher
 
 # COMMAND ----------
@@ -46,9 +63,14 @@ BASE_VOLUME_PATH = "/Volumes/desafio_kinea/research/research_volume/infraestrutu
 FILES_ROOT = os.path.join(BASE_VOLUME_PATH, "files")
 SAIDA_ROOT = os.path.join(BASE_VOLUME_PATH, "outputs_nlp_formal")
 
-TAMANHO_AMOSTRA = 120          # alvo -- acima do minimo de 100 exigido, com folga
-JANELA_DIAS_AMOSTRA = 5        # de quantos dias recentes puxar a amostra
-LIMIAR_CLUSTER_SIMILARIDADE = 0.55   # titulos acima disso (SequenceMatcher) viram o mesmo cluster
+CATALOGO = "desafio_kinea"
+SCHEMA = "research"
+
+TAMANHO_AMOSTRA = 120
+JANELA_DIAS_AMOSTRA = 5
+LIMIAR_CLUSTER_SIMILARIDADE = 0.55
+
+AREA_FIXA = "Infra"  # decisao confirmada com o usuario -- schema oficial nao previa este valor
 
 VOCABULARIO_TAGS = [
     "fato_relevante", "comunicado_cvm", "resultado_trimestral",
@@ -61,19 +83,70 @@ VOCABULARIO_TAGS = [
     "esg", "safra", "lancamento",
 ]
 
+TAGS_CRITICAS = {"fato_relevante", "rating_change", "m_a", "default", "litigation"}
+
 # COMMAND ----------
 
 # =============================================================================
-# Etapa A -- Seleção de amostra representativa (código puro, sem LLM)
+# Lookup de fontes -- source_name, subarea (setor), priority, source_type
 #
-# Estratégia: pega os N dias mais recentes, distribui a amostra
-# proporcionalmente entre eles (não só o dia mais recente, para ter
-# variedade temporal), e dentro de cada dia distribui entre os setores
-# disponíveis (via subpasta, se existir -- ou trata tudo como um grupo só
-# se a estrutura for plana).
+# Puxa de controle_fontes (mesma tabela usada em todo o projeto). Como
+# source_url e source_type nao existem como colunas proprias nessa
+# tabela hoje, sao aproximados:
+#   - source_url: dominio raiz extraido da propria URL do item
+#   - source_type: heuristica a partir de tipo_categoria (ver mapa
+#     abaixo) -- vale revisao manual depois, marcado como aproximacao
 # =============================================================================
 
-def _listar_documentos_do_dia(data: str) -> list[dict]:
+MAPA_TIPO_CATEGORIA_PARA_SOURCE_TYPE = {
+    "Diário Oficial": "regulatorio",
+    "Agência Reguladora": "regulatorio",
+    "Mídia": "noticia",
+    "Mídia especializada": "noticia",
+    "Associação": "doc_corporativo",
+    "Consultoria": "blog",
+    "Agência de Rating": "rating",
+}
+
+
+def carregar_lookup_fontes():
+    df_fontes = spark.table(f"{CATALOGO}.{SCHEMA}.controle_fontes").toPandas()
+    lookup = {}
+    for _, row in df_fontes.iterrows():
+        source_id = row.get("source_id")
+        if not source_id or source_id == "—":
+            continue
+
+        importancia = row.get("importancia_original")
+        prioridade_int = {"Alta": 1, "Média": 2, "Media": 2, "Baixa": 3}.get(importancia, 3)
+
+        tipo_categoria = row.get("tipo_categoria")
+        source_type = MAPA_TIPO_CATEGORIA_PARA_SOURCE_TYPE.get(tipo_categoria, "noticia")
+
+        lookup[source_id] = {
+            "source_name": row.get("nome_fonte") or source_id,
+            "subarea": row.get("setor") or "Não classificado",
+            "priority": prioridade_int,
+            "source_type": source_type,
+        }
+    return lookup
+
+
+def extrair_dominio_raiz(url):
+    import urllib.parse
+    try:
+        partes = urllib.parse.urlparse(url)
+        return f"{partes.scheme}://{partes.netloc}" if partes.netloc else ""
+    except Exception:
+        return ""
+
+# COMMAND ----------
+
+# =============================================================================
+# Etapa A -- Selecao de amostra representativa (codigo puro, sem LLM)
+# =============================================================================
+
+def _listar_documentos_do_dia(data):
     pasta_dia = os.path.join(FILES_ROOT, data)
     if not os.path.exists(pasta_dia):
         return []
@@ -103,7 +176,7 @@ def _listar_documentos_do_dia(data: str) -> list[dict]:
     return documentos
 
 
-def selecionar_amostra(tamanho_alvo: int, janela_dias: int) -> list[dict]:
+def selecionar_amostra(tamanho_alvo, janela_dias):
     hoje = datetime.today()
     datas = [(hoje - timedelta(days=i)).strftime("%Y-%m-%d") for i in range(janela_dias)]
 
@@ -120,11 +193,8 @@ def selecionar_amostra(tamanho_alvo: int, janela_dias: int) -> list[dict]:
     total_disponivel = sum(len(v) for v in por_dia.values())
     amostra = []
 
-    # Distribui proporcionalmente entre os dias que têm documento
     for data, docs in por_dia.items():
         cota = max(1, round(tamanho_alvo * len(docs) / total_disponivel))
-        # Amostragem determinística: pega espaçado (não aleatório), pra
-        # reprodutibilidade -- roda de novo, mesmo resultado.
         passo = max(1, len(docs) // cota)
         selecionados = docs[::passo][:cota]
         amostra.extend(selecionados)
@@ -136,33 +206,28 @@ def selecionar_amostra(tamanho_alvo: int, janela_dias: int) -> list[dict]:
 # COMMAND ----------
 
 # =============================================================================
-# Etapa B -- Clustering determinístico (código, sem LLM)
-#
-# cluster_id no formato cl_YYYY-MM-DD_slug_NN, exigido pelo schema formal.
-# Agrupa por: mesma data + título com similaridade acima do limiar. É
-# simples de propósito -- prioriza ser reproduzível e auditável sobre ser
-# "esperto" (esse é o trabalho do LLM no briefing diário, não aqui).
+# Etapa B -- Clustering deterministico (codigo, sem LLM)
 # =============================================================================
 
-def _normalizar_titulo(titulo: str) -> str:
+def _normalizar_titulo(titulo):
     titulo = unicodedata.normalize("NFKD", titulo or "").encode("ascii", "ignore").decode()
     titulo = re.sub(r"[^a-zA-Z0-9 ]", "", titulo).lower().strip()
     return titulo
 
 
-def _slugify(texto: str, max_len: int = 40) -> str:
+def _slugify(texto, max_len=40):
     texto = unicodedata.normalize("NFKD", texto or "").encode("ascii", "ignore").decode()
     texto = re.sub(r"[^a-zA-Z0-9]+", "-", texto).strip("-").lower()
     return (texto[:max_len] or "sem-titulo").strip("-")
 
 
-def atribuir_clusters(amostra: list[dict]) -> list[dict]:
+def atribuir_clusters(amostra):
     por_data = {}
     for doc in amostra:
         por_data.setdefault(doc["data"], []).append(doc)
 
     for data, docs in por_data.items():
-        clusters = []  # lista de {"titulo_normalizado": str, "membros": [doc, ...]}
+        clusters = []
         for doc in docs:
             titulo = doc["metadados"].get("title", "")
             titulo_norm = _normalizar_titulo(titulo)
@@ -187,59 +252,103 @@ def atribuir_clusters(amostra: list[dict]) -> list[dict]:
 
     return amostra
 
-# COMMAND ----------
 
-# =============================================================================
-# Etapa C.1 -- relevance_score (código puro, fórmula documentada)
-#
-# FÓRMULA (decisão confirmada com o usuário: por menção de portfólio):
-#   0.0  -> nenhuma empresa do portfólio mencionada
-#   0.5  -> 1 empresa mencionada
-#   0.7  -> 2-3 empresas mencionadas
-#   1.0  -> 4+ empresas mencionadas, OU a notícia é exclusivamente sobre
-#           1 empresa do portfólio (nome dela aparece no título)
-#
-# Reaproveita DIRETO a saída de extrair_riscos_credito() -- não faz
-# nenhuma chamada de LLM própria para esse número.
-# =============================================================================
-
-def calcular_relevance_score(riscos_mencionados: list[dict], titulo: str) -> tuple[float, str]:
-    empresas_no_universo = [r for r in riscos_mencionados if r.get("in_kinea_universe")]
-    n = len(empresas_no_universo)
-
-    titulo_norm = _normalizar_titulo(titulo)
-    foco_exclusivo = n == 1 and _normalizar_titulo(empresas_no_universo[0]["name"]) in titulo_norm
-
-    if n == 0:
-        return 0.0, "Nenhuma empresa do portfólio Kinea mencionada."
-    if foco_exclusivo:
-        return 1.0, f"Notícia focada exclusivamente em {empresas_no_universo[0]['name']} (portfólio Kinea)."
-    if n == 1:
-        return 0.5, f"1 empresa do portfólio mencionada: {empresas_no_universo[0]['name']}."
-    if n <= 3:
-        nomes = ", ".join(e["name"] for e in empresas_no_universo)
-        return 0.7, f"{n} empresas do portfólio mencionadas: {nomes}."
-    nomes = ", ".join(e["name"] for e in empresas_no_universo[:4]) + ("..." if n > 4 else "")
-    return 1.0, f"{n} empresas do portfólio mencionadas: {nomes}."
+def calcular_cluster_size_e_sources(amostra):
+    info = {}
+    for doc in amostra:
+        cid = doc["cluster_id"]
+        sid = doc["metadados"].get("source_id", "")
+        if cid not in info:
+            info[cid] = {"size": 0, "sources": set()}
+        info[cid]["size"] += 1
+        if sid:
+            info[cid]["sources"].add(sid)
+    return {cid: {"size": v["size"], "sources": sorted(v["sources"])} for cid, v in info.items()}
 
 # COMMAND ----------
 
 # =============================================================================
-# Etapa C.2 -- Sentimento do credor (LLM)
+# Etapa C.1 -- relevance_score (codigo puro, formula documentada)
+#
+# Formula combinando os 4 fatores sugeridos na Secao 6.4 do briefing
+# oficial: (a) prioridade da fonte, (b) presenca de portfolio, (c) valor
+# monetario relevante, (d) tags criticas. Pesos somam 1.0; cada fator
+# documentado no rationale, nada de caixa-preta.
+# =============================================================================
+
+THRESHOLD_VALOR_RELEVANTE = 100_000_000  # R$ 100 milhoes
+
+PADRAO_VALOR = re.compile(
+    r'R\$\s*([\d.,]+)\s*(milh[ãa]o|milh[õo]es|bilh[ãa]o|bilh[õo]es|\bmi\b|\bbi\b|\bmil\b)?',
+    re.IGNORECASE
+)
+MULTIPLICADORES_VALOR = {
+    "mil": 1_000,
+    "mi": 1_000_000, "milhão": 1_000_000, "milhao": 1_000_000, "milhões": 1_000_000, "milhoes": 1_000_000,
+    "bi": 1_000_000_000, "bilhão": 1_000_000_000, "bilhao": 1_000_000_000, "bilhões": 1_000_000_000, "bilhoes": 1_000_000_000,
+}
+
+
+def contem_valor_monetario_relevante(texto, threshold=THRESHOLD_VALOR_RELEVANTE):
+    for match in PADRAO_VALOR.finditer(texto or ""):
+        numero_str, unidade = match.groups()
+        numero_str = numero_str.replace(".", "").replace(",", ".")
+        try:
+            numero = float(numero_str)
+        except ValueError:
+            continue
+        multiplicador = MULTIPLICADORES_VALOR.get((unidade or "").lower(), 1)
+        if numero * multiplicador >= threshold:
+            return True
+    return False
+
+
+def calcular_relevance_score(prioridade_fonte, riscos_mencionados, texto, tags):
+    peso_prioridade = {1: 1.0, 2: 0.6, 3: 0.3}.get(prioridade_fonte, 0.3)
+
+    n_portfolio = len([r for r in riscos_mencionados if r.get("in_kinea_universe")])
+    if n_portfolio == 0: peso_portfolio = 0.0
+    elif n_portfolio == 1: peso_portfolio = 0.5
+    elif n_portfolio <= 3: peso_portfolio = 0.75
+    else: peso_portfolio = 1.0
+
+    tem_valor = contem_valor_monetario_relevante(texto)
+    peso_valor = 1.0 if tem_valor else 0.0
+
+    tags_criticas_presentes = TAGS_CRITICAS.intersection(tags or [])
+    peso_tags = 1.0 if tags_criticas_presentes else 0.0
+
+    score = 0.30 * peso_prioridade + 0.35 * peso_portfolio + 0.15 * peso_valor + 0.20 * peso_tags
+    score = round(min(1.0, score), 3)
+
+    rationale = (
+        f"prioridade_fonte={prioridade_fonte}(peso {peso_prioridade}) x0.30 + "
+        f"portfolio={n_portfolio} empresa(s)(peso {peso_portfolio}) x0.35 + "
+        f"valor_monetario_relevante={tem_valor}(peso {peso_valor}) x0.15 + "
+        f"tags_criticas={sorted(tags_criticas_presentes)}(peso {peso_tags}) x0.20 = {score}"
+    )
+    return score, rationale
+
+# COMMAND ----------
+
+# =============================================================================
+# Etapa C.2 -- Sentimento do credor + score numerico (LLM, uma chamada so)
 # =============================================================================
 
 SYSTEM_SENTIMENTO_CREDOR = """You are a credit analyst assessing news from the perspective of a BONDHOLDER/CREDITOR of infrastructure concessionaires -- not a general market sentiment reader.
 
 Given the article text, classify the sentiment STRICTLY from a creditor's viewpoint: does this news make the issuer's ability to service its debt look better, worse, or unchanged?
 
-Return a JSON with exactly two fields:
-- "sentimento_credor": one of "Positivo", "Neutro", "Negativo"
-- "justificativa": one sentence (max 25 words), in Portuguese (Brazil), explaining the credit-specific reasoning (not generic market reasoning).
+Return a JSON with exactly three fields:
+- "sentiment": one of "positivo", "neutro", "negativo" (lowercase, exact strings)
+- "sentiment_score": a float from -1.0 (very negative for creditors) to +1.0 (very positive for creditors)
+- "justificativa": one sentence (max 25 words), in Portuguese (Brazil), explaining the credit-specific reasoning (not generic market reasoning)
 
 Guidance:
-- "Positivo": strengthens cash flow predictability, reduces leverage, improves covenant headroom, positive rating action, successful refinancing at better terms.
-- "Negativo": weakens cash flow, increases leverage or refinancing risk, negative rating action, litigation with financial exposure, regulatory penalty with cash impact, cost overrun.
-- "Neutro": no discernible credit impact, or impact too indirect/speculative to classify either way, or the news isn't about a credit-relevant event at all.
+- "positivo": strengthens cash flow predictability, reduces leverage, improves covenant headroom, positive rating action, successful refinancing at better terms.
+- "negativo": weakens cash flow, increases leverage or refinancing risk, negative rating action, litigation with financial exposure, regulatory penalty with cash impact, cost overrun.
+- "neutro": no discernible credit impact, or impact too indirect/speculative to classify either way.
+- sentiment_score must be consistent with the category (positivo -> score > 0, negativo -> score < 0, neutro -> score close to 0).
 
 Do not conflate "good news for equity" with "good news for credit" -- a large capex announcement can be negative for a creditor (leverage increase) while being neutral or positive for an equity holder. Stay strictly in the creditor's frame.
 
@@ -248,23 +357,58 @@ Article text:
 """
 
 
-def avaliar_sentimento_credor(texto_artigo: str, chamar_llm) -> dict:
+def avaliar_sentimento_credor(texto_artigo, chamar_llm):
     resposta = chamar_llm(
         system=SYSTEM_SENTIMENTO_CREDOR.format(article_text=texto_artigo[:4000]),
-        user="Classifique o sentimento do credor para este artigo.",
+        user="Classifique o sentimento e o score numérico para este artigo.",
     )
-    sentimento = resposta.get("sentimento_credor")
-    if sentimento not in ("Positivo", "Neutro", "Negativo"):
-        sentimento = "Neutro"  # fallback seguro se o LLM devolver algo fora do vocabulário
+    sentimento = resposta.get("sentiment")
+    if sentimento not in ("positivo", "neutro", "negativo"):
+        sentimento = "neutro"
+
+    try:
+        score = float(resposta.get("sentiment_score", 0.0))
+        score = max(-1.0, min(1.0, score))
+    except (TypeError, ValueError):
+        score = 0.0
+
     return {
-        "sentimento_credor": sentimento,
-        "sentimento_justificativa": resposta.get("justificativa", ""),
+        "sentiment": sentimento,
+        "sentiment_score": round(score, 3),
+        "sentiment_justificativa": resposta.get("justificativa", ""),
     }
 
 # COMMAND ----------
 
 # =============================================================================
-# Etapa C.3 -- Tags (LLM, vocabulário fechado, multi-label)
+# Etapa C.3 -- Resumo (LLM) -- campo obrigatorio novo, Secao 6.1 do briefing
+# =============================================================================
+
+SYSTEM_SUMARIZACAO = """You are a financial news summarizer for a credit research desk.
+
+Summarize the article in 2-3 sentences (~300-500 characters) in Portuguese (Brazil), even if the source article is in English.
+
+Preserve: named entities (companies, people, agencies), monetary values, and critical dates -- do not drop these to save space.
+
+Return a JSON with exactly one field:
+- "summary": the 2-3 sentence summary in Portuguese
+
+Article text:
+{article_text}
+"""
+
+
+def gerar_resumo(texto_artigo, chamar_llm):
+    resposta = chamar_llm(
+        system=SYSTEM_SUMARIZACAO.format(article_text=texto_artigo[:4000]),
+        user="Resuma este artigo.",
+    )
+    return resposta.get("summary", "")
+
+# COMMAND ----------
+
+# =============================================================================
+# Etapa C.4 -- Tags (LLM, vocabulario fechado, multi-label)
 # =============================================================================
 
 SYSTEM_TAGS_CONTROLADAS = """You are a tagging analyst for a credit research desk. Classify the article using ONLY tags from the CLOSED vocabulary below -- never invent a new tag name in the main "tags" field.
@@ -288,16 +432,12 @@ Article text:
 """
 
 
-def classificar_tags(texto_artigo: str, chamar_llm) -> dict:
+def classificar_tags(texto_artigo, chamar_llm):
     resposta = chamar_llm(
         system=SYSTEM_TAGS_CONTROLADAS.format(article_text=texto_artigo[:4000]),
         user="Classifique as tags para este artigo.",
     )
     tags_brutas = resposta.get("tags", [])
-    # Defesa: descarta silenciosamente qualquer tag que o LLM tenha
-    # inventado fora do vocabulário, em vez de deixar vazar pro JSON
-    # final -- o vocabulário fechado é uma garantia de código, não só de
-    # prompt.
     tags_validas = [t for t in tags_brutas if t in VOCABULARIO_TAGS]
     tags_invalidas = [t for t in tags_brutas if t not in VOCABULARIO_TAGS]
     if tags_invalidas:
@@ -311,62 +451,90 @@ def classificar_tags(texto_artigo: str, chamar_llm) -> dict:
 # COMMAND ----------
 
 # =============================================================================
-# Etapa D -- Montagem do JSON por notícia (schema formal, Seção 5)
+# Etapa D -- Montagem do JSON por noticia (schema oficial, Secao 5.2)
 # =============================================================================
 
-def montar_objeto_noticia(doc: dict, chamar_llm) -> dict:
+def montar_objeto_noticia(doc, lookup_fontes, cluster_info, chamar_llm):
     metadados = doc["metadados"]
     texto = doc["texto"]
+    source_id = metadados.get("source_id", "")
 
-    # C.1 -- riscos de crédito (reaproveita o módulo já pronto)
+    info_fonte = lookup_fontes.get(source_id, {
+        "source_name": source_id or "Desconhecida",
+        "subarea": "Não classificado",
+        "priority": 3,
+        "source_type": "noticia",
+    })
+
+    # C.1 -- riscos de credito (reaproveita o modulo ja pronto)
     riscos = extrair_riscos_credito(texto, doc["data"], chamar_llm)
 
-    # C.1b -- relevance_score (código puro, usa a saída acima)
-    relevance_score, relevance_rationale = calcular_relevance_score(riscos, metadados.get("title", ""))
-
-    # C.2 -- sentimento do credor
-    sentimento = avaliar_sentimento_credor(texto, chamar_llm)
-
-    # C.3 -- tags
+    # C.4 primeiro (tags), porque relevance_score usa as tags como um dos fatores
     tags_resultado = classificar_tags(texto, chamar_llm)
 
+    # C.1b -- relevance_score (codigo puro, usa riscos + tags + prioridade)
+    relevance_score, relevance_rationale = calcular_relevance_score(
+        info_fonte["priority"], riscos, texto, tags_resultado["tags"]
+    )
+
+    # C.2 -- sentimento + score numerico
+    sentimento = avaliar_sentimento_credor(texto, chamar_llm)
+
+    # C.3 -- resumo
+    resumo = gerar_resumo(texto, chamar_llm)
+
+    cluster_id = doc.get("cluster_id", "")
+    info_cluster = cluster_info.get(cluster_id, {"size": 1, "sources": [source_id] if source_id else []})
+
+    url_item = metadados.get("url", "")
+
     return {
-        "source_id": metadados.get("source_id", ""),
+        "id": str(uuid.uuid4()),
+        "cluster_id": cluster_id,
+        "source_id": source_id,
+        "source_name": info_fonte["source_name"],
+        "source_url": extrair_dominio_raiz(url_item),
+        "source_type": info_fonte["source_type"],
         "title": metadados.get("title", ""),
-        "url": metadados.get("url", ""),
+        "url": url_item,
         "published_at": metadados.get("published_at") or metadados.get("date") or "",
-        "date_processed": doc["data"],
-        "cluster_id": doc.get("cluster_id", ""),
+        "captured_at": datetime.now(timezone.utc).astimezone().isoformat(),
+        "language": "pt",
+        "area": AREA_FIXA,
+        "subarea": info_fonte["subarea"],
+        "priority": info_fonte["priority"],
         "credit_risks_mentioned": riscos,
+        "summary": resumo,
+        "sentiment": sentimento["sentiment"],
+        "sentiment_score": sentimento["sentiment_score"],
         "relevance_score": relevance_score,
         "relevance_score_rationale": relevance_rationale,
-        "sentiment_credor": sentimento["sentimento_credor"],
-        "sentiment_justificativa": sentimento["sentimento_justificativa"],
         "tags": tags_resultado["tags"],
         "tag_sugerida_fora_do_vocabulario": tags_resultado["tag_sugerida_fora_do_vocabulario"],
+        "cluster_size": info_cluster["size"],
+        "cluster_sources": info_cluster["sources"],
     }
 
 # COMMAND ----------
 
 # =============================================================================
-# Execução
+# Execucao
 # =============================================================================
-#
-# `chamar_llm` e `extrair_riscos_credito` precisam estar disponíveis no
-# ambiente antes de rodar esta célula -- via %run do
-# scripts/extrair_riscos_credito.py, e a função de chamada de LLM já usada
-# em produção.
 
 if __name__ == "__main__":
     os.makedirs(SAIDA_ROOT, exist_ok=True)
 
-    print("=== Etapa A: selecionando amostra ===")
+    print("=== Carregando lookup de fontes (controle_fontes) ===")
+    lookup_fontes = carregar_lookup_fontes()
+    print(f"  {len(lookup_fontes)} fontes no lookup")
+
+    print("\n=== Etapa A: selecionando amostra ===")
     amostra = selecionar_amostra(TAMANHO_AMOSTRA, JANELA_DIAS_AMOSTRA)
 
     print("\n=== Etapa B: atribuindo clusters (determinístico) ===")
     amostra = atribuir_clusters(amostra)
-    n_clusters = len(set(d["cluster_id"] for d in amostra))
-    print(f"  {len(amostra)} notícias agrupadas em {n_clusters} clusters")
+    cluster_info = calcular_cluster_size_e_sources(amostra)
+    print(f"  {len(amostra)} notícias agrupadas em {len(cluster_info)} clusters")
 
     print("\n=== Etapa C+D: enriquecendo e montando o JSON por notícia ===")
     resultado = []
@@ -374,7 +542,7 @@ if __name__ == "__main__":
         titulo_curto = (doc["metadados"].get("title") or "")[:60]
         print(f"  [{i}/{len(amostra)}] {titulo_curto}")
         try:
-            objeto = montar_objeto_noticia(doc, chamar_llm)
+            objeto = montar_objeto_noticia(doc, lookup_fontes, cluster_info, chamar_llm)
             resultado.append(objeto)
         except Exception as e:
             print(f"    [ERRO] pulando esta notícia: {e}")
