@@ -29,18 +29,25 @@
 #
 # Etapas:
 #   A. Seleção de amostra representativa (código, não LLM)
-#   B. Clustering determinístico por similaridade de título (código, não
-#      LLM -- cluster_id precisa ser reproduzível). NOTA: o briefing
-#      oficial (Seção 7.1) recomenda clustering semântico via embeddings
-#      -- este script ainda usa comparação de título por string, mais
-#      simples; upgrade para embeddings é item separado, ainda pendente.
+#   B0. Resumo previo de cada noticia da amostra (LLM) -- precisa vir
+#      antes do clustering porque a Etapa B (embeddings) usa titulo+
+#      summary como texto de entrada, nao so o titulo. O resumo gerado
+#      aqui e reaproveitado na Etapa C.3 (nao chama o LLM de novo).
+#   B. Clustering semântico via embeddings (Seção 7.1 do briefing
+#      oficial) -- gerar_embedding(titulo+summary), similaridade de
+#      cosseno com limiar >= 0.85, janela deslizante de ±72h (compara
+#      entre dias adjacentes, não só dentro do mesmo dia). Substitui a
+#      versão anterior por comparação de título (SequenceMatcher,
+#      isolada por dia) -- mantida no arquivo, renomeada e comentada,
+#      como fallback (ver atribuir_clusters_por_titulo_LEGADO).
 #   C. Enriquecimento por notícia (riscos de crédito, sentimento+score,
-#      resumo, tags, relevance_score)
+#      resumo [reaproveitado da Etapa B0], tags, relevance_score)
 #   D. Montagem do JSON por notícia, no formato do schema oficial
 #
-# IMPORTANTE: `chamar_llm(system, user)` e `extrair_riscos_credito(...)`
-# são fornecidas pelo ambiente via %run -- este script não as redefine.
-# `spark` também é fornecido pelo ambiente Databricks.
+# IMPORTANTE: `chamar_llm(system, user)`, `gerar_embedding(texto)` e
+# `extrair_riscos_credito(...)` são fornecidas pelo ambiente via %run
+# (chamar_llm.py / extrair_riscos_credito.py) -- este script não as
+# redefine. `spark` também é fornecido pelo ambiente Databricks.
 # =============================================================================
 
 # COMMAND ----------
@@ -50,8 +57,9 @@ import re
 import json
 import uuid
 import unicodedata
+import numpy as np
 from datetime import datetime, timedelta, timezone
-from difflib import SequenceMatcher
+from difflib import SequenceMatcher  # usado só pelo fallback legado (ver Etapa B)
 
 # COMMAND ----------
 
@@ -68,6 +76,13 @@ SCHEMA = "research"
 
 TAMANHO_AMOSTRA = 120
 JANELA_DIAS_AMOSTRA = 5
+
+# Clustering semantico (Etapa B) -- ver atribuir_clusters().
+LIMIAR_CLUSTER_SIMILARIDADE_EMBEDDING = 0.85
+JANELA_HORAS_CLUSTER = 72
+
+# Limiar do metodo antigo por titulo (SequenceMatcher) -- so usado pelo
+# fallback atribuir_clusters_por_titulo_LEGADO(), mantido pra referencia.
 LIMIAR_CLUSTER_SIMILARIDADE = 0.55
 
 AREA_FIXA = "Infra"  # decisao confirmada com o usuario -- schema oficial nao previa este valor
@@ -206,7 +221,43 @@ def selecionar_amostra(tamanho_alvo, janela_dias):
 # COMMAND ----------
 
 # =============================================================================
-# Etapa B -- Clustering deterministico (codigo, sem LLM)
+# Etapa B0 -- Resumo previo (LLM), necessario pro texto de entrada do
+# clustering semantico (titulo + summary, nao so titulo -- Secao 7.1)
+# =============================================================================
+
+def gerar_resumos_previos(amostra, chamar_llm):
+    """Gera o summary de cada noticia da amostra ANTES do clustering.
+    A Etapa B usa titulo+summary como texto de entrada do embedding, entao
+    o resumo precisa existir antes dela rodar. O resumo fica em
+    doc["resumo"] e e reaproveitado depois em montar_objeto_noticia
+    (Etapa C.3), sem chamar o LLM de novo pra mesma noticia."""
+    for doc in amostra:
+        try:
+            doc["resumo"] = gerar_resumo(doc["texto"], chamar_llm)
+        except Exception as e:
+            print(f"    [aviso] falha ao gerar resumo prévio pra clustering ({e}); usando só o título.")
+            doc["resumo"] = ""
+    return amostra
+
+# COMMAND ----------
+
+# =============================================================================
+# Etapa B -- Clustering semantico via embeddings (Secao 7.1 do briefing
+# oficial)
+#
+# Texto de entrada: titulo + summary (nao so titulo -- summary carrega
+# mais contexto do evento, ajuda a casar noticias com titulos escritos
+# de forma bem diferente sobre o mesmo fato). Similaridade de cosseno
+# entre embeddings (gerar_embedding(), de scripts/chamar_llm.py), limiar
+# >= 0.85. Janela deslizante de +-72h (JANELA_HORAS_CLUSTER) -- compara
+# candidatos entre dias adjacentes, nao fica mais isolado por dia como o
+# metodo antigo.
+#
+# Greedy, mesma estrategia do metodo antigo: percorre a amostra em ordem
+# cronologica, compara cada noticia com o EMBEDDING REPRESENTATIVO (o da
+# primeira noticia) de cada cluster já aberto cuja janela de tempo
+# alcança a noticia atual; entra no cluster de maior similaridade acima
+# do limiar, ou abre cluster novo.
 # =============================================================================
 
 def _normalizar_titulo(titulo):
@@ -221,7 +272,83 @@ def _slugify(texto, max_len=40):
     return (texto[:max_len] or "sem-titulo").strip("-")
 
 
-def atribuir_clusters(amostra):
+def _cosseno(vetor_a, vetor_b):
+    a, b = np.array(vetor_a, dtype=float), np.array(vetor_b, dtype=float)
+    denom = np.linalg.norm(a) * np.linalg.norm(b)
+    if denom == 0:
+        return 0.0
+    return float(np.dot(a, b) / denom)
+
+
+def _obter_datetime_doc(doc):
+    """Data de referencia pra janela deslizante. Tenta published_at/date
+    dos metadados (formato YYYY-MM-DD, convencao ja usada no resto do
+    projeto); se nao parsear, cai pra doc["data"] (a pasta de captura,
+    sempre bem formada)."""
+    candidato = doc["metadados"].get("published_at") or doc["metadados"].get("date") or ""
+    try:
+        return datetime.strptime(str(candidato)[:10], "%Y-%m-%d")
+    except (ValueError, TypeError):
+        return datetime.strptime(doc["data"], "%Y-%m-%d")
+
+
+def atribuir_clusters(amostra, gerar_embedding, limiar=LIMIAR_CLUSTER_SIMILARIDADE_EMBEDDING,
+                       janela_horas=JANELA_HORAS_CLUSTER):
+    janela_segundos = janela_horas * 3600
+
+    for doc in amostra:
+        titulo = doc["metadados"].get("title", "")
+        resumo = doc.get("resumo", "")
+        texto_para_embedding = f"{titulo}\n{resumo}".strip() or titulo
+        doc["_embedding_cluster"] = gerar_embedding(texto_para_embedding)
+        doc["_datetime_cluster"] = _obter_datetime_doc(doc)
+
+    amostra_ordenada = sorted(amostra, key=lambda d: d["_datetime_cluster"])
+
+    clusters = []  # cada item: membros, embedding_representativo, datetime_representativo, titulo_original, data_repr
+    for doc in amostra_ordenada:
+        dt_doc = doc["_datetime_cluster"]
+
+        melhor_cluster, melhor_similaridade = None, 0.0
+        for cluster in clusters:
+            delta_segundos = abs((dt_doc - cluster["datetime_representativo"]).total_seconds())
+            if delta_segundos > janela_segundos:
+                continue
+            similaridade = _cosseno(doc["_embedding_cluster"], cluster["embedding_representativo"])
+            if similaridade >= limiar and similaridade > melhor_similaridade:
+                melhor_cluster, melhor_similaridade = cluster, similaridade
+
+        if melhor_cluster:
+            melhor_cluster["membros"].append(doc)
+        else:
+            clusters.append({
+                "membros": [doc],
+                "embedding_representativo": doc["_embedding_cluster"],
+                "datetime_representativo": dt_doc,
+                "titulo_original": doc["metadados"].get("title", ""),
+                "data_repr": doc["data"],
+            })
+
+    for i, cluster in enumerate(clusters, start=1):
+        slug = _slugify(cluster["titulo_original"])
+        cluster_id = f"cl_{cluster['data_repr']}_{slug}_{i:02d}"
+        for doc in cluster["membros"]:
+            doc["cluster_id"] = cluster_id
+            doc.pop("_embedding_cluster", None)
+            doc.pop("_datetime_cluster", None)
+
+    return amostra
+
+
+def atribuir_clusters_por_titulo_LEGADO(amostra):
+    """Metodo ANTERIOR de clustering (comparacao de titulo por
+    SequenceMatcher, isolado por dia) -- NAO usado pelo pipeline
+    principal, mantido como fallback (se o clustering por embeddings
+    apresentar problema) e pra comparar os dois resultados lado a lado
+    durante a validacao. Falhava em casar titulos bem diferentes sobre o
+    mesmo evento (ex.: "Samarco retoma producao em Germano" vs "Samarco
+    volta a operar em Minas Gerais") -- exatamente o caso que motivou a
+    troca pra embeddings semanticos (Secao 7.1 do briefing oficial)."""
     por_data = {}
     for doc in amostra:
         por_data.setdefault(doc["data"], []).append(doc)
@@ -251,6 +378,152 @@ def atribuir_clusters(amostra):
                 doc["cluster_id"] = cluster_id
 
     return amostra
+
+# COMMAND ----------
+
+# =============================================================================
+# cluster_sentence_embeddings_refined -- adaptado de
+# templates/Clusterização de Embeddings.ipynb (PCA + UMAP + HDBSCAN, com
+# merge opcional de clusters em ate max_macro_clusters "macro temas").
+#
+# NAO e chamada por atribuir_clusters() acima -- os parametros default
+# dessa funcao (min_cluster_size=5, min_samples=5, max_macro_clusters=5)
+# foram desenhados pra agrupar um volume grande de embeddings em poucos
+# TEMAS macro, o que e incompatível com o que atribuir_clusters() precisa
+# (detectar clusters pequenos, ate de 2 noticias, sobre o MESMO evento
+# especifico, numa amostra de 10-120 itens por execucao -- HDBSCAN com
+# min_cluster_size=5 simplesmente nao formaria um cluster de 2 noticias,
+# tratando as duas como ruido). Mantida disponivel no arquivo (adaptada,
+# nao reescrita do zero -- unica mudanca real é affinity= -> metric= no
+# AgglomerativeClustering, ja sinalizado como pendente no notebook
+# original) pra uso futuro se o projeto precisar de clustering temático
+# macro (ex.: agrupar a amostra do dia em 5 grandes temas), caso
+# diferente do dedup por evento que atribuir_clusters() resolve.
+#
+# Imports de umap/hdbscan ficam dentro da funcao (lazy) de proposito --
+# esses pacotes nao sao dependencia do resto do pipeline (tags,
+# sentimento, riscos de credito, etc.), entao um cluster sem
+# `%pip install umap-learn hdbscan` continua rodando o resto do script
+# normalmente; só falha se essa funcao especifica for chamada.
+# =============================================================================
+
+def cluster_sentence_embeddings_refined(
+    embeddings,
+    desired_pca_components=256,  # numero desejado de componentes do PCA
+    umap_components=20,          # dimensoes finais do UMAP
+    umap_neighbors=15,
+    min_cluster_size=5,
+    min_samples=5,
+    random_state=42,
+    reassign_noise=True,
+    merge_clusters=True,         # ativa merge de clusters se tiver muitos
+    max_macro_clusters=5,        # alvo de clusters macro pra amostras grandes
+):
+    """Agrupa embeddings via normalizacao, reducao de dimensionalidade
+    (PCA + UMAP) e clustering HDBSCAN. Opcionalmente, se muitos clusters
+    forem gerados, clusters parecidos sao mesclados por similaridade de
+    cosseno dos centroides, formando "macro temas".
+
+    Parametros:
+        embeddings (np.ndarray): matriz 2D de embeddings (n_amostras x dim_original).
+        desired_pca_components (int): componentes do PCA; ajustado com seguranca pra
+            min(n_amostras, n_features, desired).
+        umap_components (int): dimensoes da projecao UMAP.
+        umap_neighbors (int): vizinhos mais proximos pro UMAP.
+        min_cluster_size (int): tamanho minimo de cluster pro HDBSCAN.
+        min_samples (int): min_samples pro HDBSCAN.
+        random_state (int): semente pra reprodutibilidade.
+        reassign_noise (bool): se True, pontos de ruido (-1) sao reatribuidos
+            ao cluster mais proximo via centroide.
+        merge_clusters (bool): se True e o numero de clusters passar de
+            max_macro_clusters, os clusters sao mesclados.
+        max_macro_clusters (int): alvo maximo de clusters (macro temas) apos o merge.
+
+    Devolve:
+        final_labels (np.ndarray): rotulos finais de cluster por embedding.
+        embeddings_umap (np.ndarray): embeddings reduzidos pelo UMAP.
+        hdbscan_labels (np.ndarray): rotulos originais do HDBSCAN (antes do merge
+            e da reatribuicao de ruido).
+    """
+    import hdbscan
+    import umap.umap_ as umap
+    from sklearn.preprocessing import normalize
+    from sklearn.decomposition import PCA, TruncatedSVD
+    from sklearn.neighbors import NearestCentroid
+    from sklearn.cluster import AgglomerativeClustering
+
+    min_samples = min(min_samples, embeddings.shape[0])
+    umap_neighbors = min(umap_neighbors, embeddings.shape[0]) - 1
+    min_cluster_size = min(min_cluster_size, embeddings.shape[0])
+    umap_components = min(umap_components, embeddings.shape[0])
+
+    # Etapa 1: normaliza os embeddings pra norma L2 unitaria.
+    embeddings_norm = normalize(embeddings, norm="l2", axis=1)
+
+    # Etapa 2: PCA pra reducao inicial de dimensionalidade.
+    n_amostras, n_features = embeddings_norm.shape
+    safe_pca_components = min(desired_pca_components, n_amostras, n_features)
+
+    if n_features > safe_pca_components:
+        pca = PCA(n_components=safe_pca_components, random_state=random_state)
+        embeddings_reduced = pca.fit_transform(embeddings_norm)
+    else:
+        embeddings_reduced = embeddings_norm
+
+    # Usa TruncatedSVD se o PCA ficar muito restrito pelo tamanho da amostra.
+    if n_features > desired_pca_components:
+        svd = TruncatedSVD(n_components=desired_pca_components, random_state=random_state)
+        embeddings_reduced = svd.fit_transform(embeddings_norm)
+    else:
+        embeddings_reduced = embeddings_norm
+
+    # Etapa 3: UMAP pra reducao adicional.
+    try:
+        umap_reducer = umap.UMAP(n_neighbors=umap_neighbors, n_components=umap_components,
+                                  metric="euclidean", random_state=random_state, min_dist=0.0)
+        embeddings_umap = umap_reducer.fit_transform(embeddings_reduced)
+    except Exception:
+        umap_reducer = umap.UMAP(n_neighbors=umap_neighbors, metric="euclidean",
+                                  random_state=random_state, min_dist=0.0)
+        embeddings_umap = umap_reducer.fit_transform(embeddings_reduced)
+
+    # Etapa 4: clustering HDBSCAN.
+    clusterer = hdbscan.HDBSCAN(min_cluster_size=min_cluster_size, min_samples=min_samples,
+                                 metric="euclidean", cluster_selection_method="leaf",
+                                 prediction_data=True)
+    hdbscan_labels = clusterer.fit_predict(embeddings_umap)
+
+    # Etapa 5: reatribui pontos de ruido (-1) ao cluster mais proximo, se pedido.
+    final_labels = np.copy(hdbscan_labels)
+    if reassign_noise:
+        noise_idx = np.where(hdbscan_labels == -1)[0]
+        clustered_idx = np.where(hdbscan_labels != -1)[0]
+        if len(noise_idx) > 0 and len(clustered_idx) > 0:
+            clf = NearestCentroid()
+            clf.fit(embeddings_umap[clustered_idx], hdbscan_labels[clustered_idx])
+            reassigned = clf.predict(embeddings_umap[noise_idx])
+            final_labels[noise_idx] = reassigned
+
+    # Etapa 6: merge opcional de clusters, se tiver mais que max_macro_clusters.
+    unique_clusters = np.unique(final_labels)
+    num_clusters = len(unique_clusters)
+    if merge_clusters and num_clusters > max_macro_clusters:
+        centroids = []
+        for cluster in unique_clusters:
+            idx = np.where(final_labels == cluster)[0]
+            centroid = embeddings_umap[idx].mean(axis=0)
+            centroids.append(centroid)
+        centroids = np.vstack(centroids)
+
+        # metric= (nao affinity=, deprecado/removido em versoes recentes do sklearn
+        # -- unica mudanca real em relacao ao notebook original).
+        agg_clusterer = AgglomerativeClustering(n_clusters=max_macro_clusters, metric="cosine", linkage="average")
+        macro_labels = agg_clusterer.fit_predict(centroids)
+
+        mapping = {orig: macro for orig, macro in zip(unique_clusters, macro_labels)}
+        final_labels = np.array([mapping[label] for label in final_labels])
+
+    return final_labels, embeddings_umap, hdbscan_labels
 
 
 def calcular_cluster_size_e_sources(amostra):
@@ -480,8 +753,12 @@ def montar_objeto_noticia(doc, lookup_fontes, cluster_info, chamar_llm):
     # C.2 -- sentimento + score numerico
     sentimento = avaliar_sentimento_credor(texto, chamar_llm)
 
-    # C.3 -- resumo
-    resumo = gerar_resumo(texto, chamar_llm)
+    # C.3 -- resumo (reaproveita o resumo ja gerado na Etapa B0, antes do
+    # clustering -- o clustering por embeddings precisa do resumo pronto
+    # pra montar o texto titulo+summary; gerar de novo aqui duplicaria a
+    # chamada de LLM). Só chama gerar_resumo() aqui se por algum motivo
+    # a Etapa B0 não rodou pra este doc (defensivo).
+    resumo = doc.get("resumo") or gerar_resumo(texto, chamar_llm)
 
     cluster_id = doc.get("cluster_id", "")
     info_cluster = cluster_info.get(cluster_id, {"size": 1, "sources": [source_id] if source_id else []})
@@ -531,8 +808,11 @@ if __name__ == "__main__":
     print("\n=== Etapa A: selecionando amostra ===")
     amostra = selecionar_amostra(TAMANHO_AMOSTRA, JANELA_DIAS_AMOSTRA)
 
-    print("\n=== Etapa B: atribuindo clusters (determinístico) ===")
-    amostra = atribuir_clusters(amostra)
+    print("\n=== Etapa B0: gerando resumos prévios (entrada do clustering) ===")
+    amostra = gerar_resumos_previos(amostra, chamar_llm)
+
+    print("\n=== Etapa B: atribuindo clusters (embeddings semânticos) ===")
+    amostra = atribuir_clusters(amostra, gerar_embedding)
     cluster_info = calcular_cluster_size_e_sources(amostra)
     print(f"  {len(amostra)} notícias agrupadas em {len(cluster_info)} clusters")
 

@@ -89,3 +89,17 @@ def chamar_llm(system: str, user: str) -> dict:
             f"Resposta do LLM não é JSON válido: {e}\nResposta bruta: {texto_resposta[:500]}"
         )
 
+# COMMAND ----------
+
+EMBEDDING_ENGINE = "text-embedding-3-small"  # confirmar se e o deployment certo
+
+
+def gerar_embedding(texto: str) -> list[float]:
+    """Gera o vetor de embedding de um texto, usado no clustering
+    semantico (Secao 7.1 do briefing oficial)."""
+    resposta = client.embeddings.create(
+        model=EMBEDDING_ENGINE,
+        input=texto[:8000],
+    )
+    return resposta.data[0].embedding
+
