@@ -257,7 +257,7 @@ ficar desatualizadas conforme o projeto avança:
   `_B.py`; `corrigir_dados_relatorio.py` vs. `corrigir_dados_relatorio
   (2).py`. (A duplicata equivalente do `gera_config.ipynb` na raiz já foi
   removida em 2026-08-14, depois deste levantamento ter começado — ver
-  `docs/prompts/README.md`.) Se alguém consolidar/apagar as demais cópias,
+  `entregaveis/prompts/README.md`.) Se alguém consolidar/apagar as demais cópias,
   as notas específicas sobre elas neste documento ficam obsoletas e devem
   ser removidas.
 - **`ANTAQ` não aparece em `controle_notebooks.fontes_cobertas` para
@@ -271,7 +271,7 @@ ficar desatualizadas conforme o projeto avança:
   vivem, não a qualidade ou maturidade dos prompts em si. Conforme essa
   peça evoluir (novos campos de saída, novos critérios de seleção,
   mudança no formato do e-mail), a seção correspondente em
-  [docs/prompts/README.md](docs/prompts/README.md) precisa ser revisada
+  [entregaveis/prompts/README.md](prompts/README.md) precisa ser revisada
   junto — ela descreve *onde* os prompts vivem, não substitui a leitura
   do `gera_config.ipynb` real.
 - O comando de sincronização no README usa um placeholder (`<ID-do-repo>`)

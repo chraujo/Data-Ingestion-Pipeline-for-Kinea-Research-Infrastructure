@@ -6,7 +6,7 @@ Kinea Investimentos.
 
 > Para convenções de código, fluxo de adição de fonte nova e histórico de
 > bugs já resolvidos, veja [CLAUDE.md](CLAUDE.md) — este README cobre visão
-> geral, arquitetura e "como rodar"; o [RUNBOOK.md](RUNBOOK.md) cobre
+> geral, arquitetura e "como rodar"; o [RUNBOOK.md](entregaveis/RUNBOOK.md) cobre
 > operação do dia a dia e troubleshooting.
 
 ## Para quem é este projeto
@@ -241,7 +241,7 @@ databricks jobs run-now --job-id 895989585317993 --profile kinea-desafio
 
 **Adicionar uma fonte nova**: siga o fluxo de 3 fases documentado em
 [CLAUDE.md](CLAUDE.md#como-adicionar-uma-fonte-nova) e formalizado com
-passo a passo em [RUNBOOK.md](RUNBOOK.md).
+passo a passo em [RUNBOOK.md](entregaveis/RUNBOOK.md).
 
 **Corrigir dados da tabela de controle** ou **gerar o relatório de
 progresso manualmente**: ver seção correspondente no Runbook.
