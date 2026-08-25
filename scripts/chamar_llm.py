@@ -103,3 +103,17 @@ def gerar_embedding(texto: str) -> list[float]:
     )
     return resposta.data[0].embedding
 
+# COMMAND ----------
+
+# Alternativa local -- usada porque a conta Azure OpenAI atual nao tem
+# nenhum modelo de embedding implantado. Roda direto no cluster, sem
+# API externa, sem credencial, sem custo por chamada.
+
+from sentence_transformers import SentenceTransformer
+
+_modelo_embedding_local = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
+
+def gerar_embedding_local(texto: str) -> list[float]:
+    vetor = _modelo_embedding_local.encode(texto, normalize_embeddings=True)
+    return vetor.tolist()
+

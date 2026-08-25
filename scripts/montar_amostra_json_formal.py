@@ -34,8 +34,10 @@
 #      summary como texto de entrada, nao so o titulo. O resumo gerado
 #      aqui e reaproveitado na Etapa C.3 (nao chama o LLM de novo).
 #   B. Clustering semântico via embeddings (Seção 7.1 do briefing
-#      oficial) -- gerar_embedding(titulo+summary), similaridade de
-#      cosseno com limiar >= 0.85, janela deslizante de ±72h (compara
+#      oficial) -- gerar_embedding_local(titulo+summary), similaridade de
+#      cosseno com limiar >= 0.75 (calibrado empiricamente pro modelo
+#      local, ver LIMIAR_CLUSTER_SIMILARIDADE_EMBEDDING), janela
+#      deslizante de ±72h (compara
 #      entre dias adjacentes, não só dentro do mesmo dia). Substitui a
 #      versão anterior por comparação de título (SequenceMatcher,
 #      isolada por dia) -- mantida no arquivo, renomeada e comentada,
@@ -44,9 +46,11 @@
 #      resumo [reaproveitado da Etapa B0], tags, relevance_score)
 #   D. Montagem do JSON por notícia, no formato do schema oficial
 #
-# IMPORTANTE: `chamar_llm(system, user)`, `gerar_embedding(texto)` e
-# `extrair_riscos_credito(...)` são fornecidas pelo ambiente via %run
-# (chamar_llm.py / extrair_riscos_credito.py) -- este script não as
+# IMPORTANTE: `chamar_llm(system, user)`, `gerar_embedding_local(texto)`
+# (usada aqui -- a conta Azure OpenAI atual não tem deployment de
+# embedding, ver gerar_embedding() em chamar_llm.py, mantida sem uso por
+# ora) e `extrair_riscos_credito(...)` são fornecidas pelo ambiente via
+# %run (chamar_llm.py / extrair_riscos_credito.py) -- este script não as
 # redefine. `spark` também é fornecido pelo ambiente Databricks.
 # =============================================================================
 
@@ -78,7 +82,22 @@ TAMANHO_AMOSTRA = 120
 JANELA_DIAS_AMOSTRA = 5
 
 # Clustering semantico (Etapa B) -- ver atribuir_clusters().
-LIMIAR_CLUSTER_SIMILARIDADE_EMBEDDING = 0.85
+#
+# LIMIAR calibrado empiricamente com o modelo local
+# paraphrase-multilingual-MiniLM-L12-v2 (gerar_embedding_local, ver
+# chamar_llm.py) -- 0.85 era calibrado pensando no embedding da OpenAI,
+# que nunca chegou a ficar disponivel (conta sem deployment). Com o
+# modelo local, testado com 3 pares (titulo+summary, mesmo formato usado
+# em producao):
+#   - Caso 1 (mesmo evento, titulos bem diferentes, sintetico): 0.8855
+#   - Caso 2 (eventos diferentes, titulo parecido, sintetico): 0.5229
+#   - Caso 3 (noticias REAIS do Volume, 2026-08-24, "ONS aciona plano
+#     emergencial..." via agencia_eixos vs. via InfoMoney/linked_article,
+#     mesmo evento, fontes independentes): 0.8153
+# Em 0.85 o Caso 3 (o mais realista) falhava (0.8153 < 0.85). Em 0.75 os
+# 3 casos passam (0.8855, 0.5229 corretamente abaixo, 0.8153) -- nao foi
+# necessario descer ate 0.70.
+LIMIAR_CLUSTER_SIMILARIDADE_EMBEDDING = 0.75
 JANELA_HORAS_CLUSTER = 72
 
 # Limiar do metodo antigo por titulo (SequenceMatcher) -- so usado pelo
@@ -248,8 +267,11 @@ def gerar_resumos_previos(amostra, chamar_llm):
 # Texto de entrada: titulo + summary (nao so titulo -- summary carrega
 # mais contexto do evento, ajuda a casar noticias com titulos escritos
 # de forma bem diferente sobre o mesmo fato). Similaridade de cosseno
-# entre embeddings (gerar_embedding(), de scripts/chamar_llm.py), limiar
-# >= 0.85. Janela deslizante de +-72h (JANELA_HORAS_CLUSTER) -- compara
+# entre embeddings (gerar_embedding_local(), de scripts/chamar_llm.py --
+# modelo local, ver nota sobre a conta Azure OpenAI sem deployment de
+# embedding), limiar >= 0.75 (calibrado empiricamente, ver comentario
+# junto de LIMIAR_CLUSTER_SIMILARIDADE_EMBEDDING). Janela deslizante de
+# +-72h (JANELA_HORAS_CLUSTER) -- compara
 # candidatos entre dias adjacentes, nao fica mais isolado por dia como o
 # metodo antigo.
 #
@@ -811,8 +833,8 @@ if __name__ == "__main__":
     print("\n=== Etapa B0: gerando resumos prévios (entrada do clustering) ===")
     amostra = gerar_resumos_previos(amostra, chamar_llm)
 
-    print("\n=== Etapa B: atribuindo clusters (embeddings semânticos) ===")
-    amostra = atribuir_clusters(amostra, gerar_embedding)
+    print("\n=== Etapa B: atribuindo clusters (embeddings semânticos, modelo local) ===")
+    amostra = atribuir_clusters(amostra, gerar_embedding_local)
     cluster_info = calcular_cluster_size_e_sources(amostra)
     print(f"  {len(amostra)} notícias agrupadas em {len(cluster_info)} clusters")
 
